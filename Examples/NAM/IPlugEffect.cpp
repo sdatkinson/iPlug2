@@ -12,7 +12,6 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
   GetParam(kGain)->InitDouble("Gain", 50., 0., 100.0, 0.01, "%");
 
 #if IPLUG_DSP
-  std::cout << "Hi DSP" << std::flush;
   this->LoadModel();
   if (this->have_module) {
     this->input_buffer.resize(this->input_buffer_size);
@@ -21,7 +20,6 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 #endif
 
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
-  std::cout << "Hi Editor" << std::flush;
   mMakeGraphicsFunc = [&]() {
     return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS, GetScaleForScreen(PLUG_WIDTH, PLUG_HEIGHT));
   };
@@ -121,23 +119,26 @@ void NeuralAmpModeler::ProcessInputBufferUpdate(sample** inputs, const int nFram
 
 void NeuralAmpModeler::ProcessTorch(sample** outputs, const int nFrames, const int nChans)
 {
-//#ifdef TORCHIN
-//  // Hoo boy probably way inefficient.
-//  const int i0 = this->input_buffer_offset - this->receptive_field + 1;
-//  const int n = this->receptive_field + nFrames - 1;
-//  std::vector<torch::jit::IValue> inputs;
-//  for (int i=i0; i < i0 + n; i++)
-//    inputs.push_back(this->input_buffer[i]);
-//  at::Tensor output = this->module.forward(inputs).toTensor();
-//  for (int c = 0; c < nChans; c++)
-//    for (int i = 0, j = this->input_buffer_offset; i < nFrames; i++, j++)
-//      outputs[c][i] = output[i];
-//#else
+#ifdef TORCHIN
+  // Hoo boy probably way inefficient.
+  const int i0 = this->input_buffer_offset - this->receptive_field + 1;
+  const int n = this->receptive_field + nFrames - 1;
+  std::vector<torch::jit::IValue> inputs;
+  for (int i=i0; i < i0 + n; i++)
+    inputs.push_back(this->input_buffer[i]);
+  at::Tensor output;
+  output = this->module.forward(inputs).toTensor();
+  // Transfer to output buffer:
+  sample* output_data = output.data<sample>();
+  for (int c = 0; c < nChans; c++)
+    for (int i = 0; i < nFrames; i++)
+      outputs[c][i] = output_data[i];
+#else
   for (int c = 0; c < nChans; c++)
     for (int i = 0, j = this->input_buffer_offset; i < nFrames; i++, j++)
       // So you can be sure there's some computation happening!
       outputs[c][i] = 0.5 * this->input_buffer[j];
-//#endif
+#endif
 }
 
 void NeuralAmpModeler::ProcessGain(sample** outputs, const int nFrames, const int nChans)
