@@ -29,7 +29,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
     const IRECT b = pGraphics->GetBounds();
 #ifdef TORCHIN
-    const char* name = "NAM2";
+    const char* name = "NAM2 (Torch)";
 #else
     const char* name = "NAM2 (No Torch)";
 #endif

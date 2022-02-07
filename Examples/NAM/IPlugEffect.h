@@ -1,6 +1,6 @@
 #pragma once
 
-//#define TORCHIN
+#define TORCHIN
 
 #if IPLUG_DSP
 #include <vector>
