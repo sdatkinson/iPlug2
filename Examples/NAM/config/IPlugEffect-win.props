@@ -10,6 +10,7 @@
     <PDB_FILE>$(SolutionDir)build-win\pdbs\$(TargetName)_$(Platform).pdb</PDB_FILE>
     <BUILD_DIR>$(SolutionDir)build-win</BUILD_DIR>
     <CREATE_BUNDLE_SCRIPT>$(IPLUG2_ROOT)\Scripts\create_bundle.bat</CREATE_BUNDLE_SCRIPT>
+    <NAM_APP_LIBS>torch_cpu.lib;c10.lib;torch.lib;</NAM_APP_LIBS>
   </PropertyGroup>
   <ImportGroup Label="PropertySheets">
     <Import Project="$(IPLUG2_ROOT)\common-win.props" />

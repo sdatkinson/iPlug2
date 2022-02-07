@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <memory>
 
@@ -11,14 +12,16 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
   GetParam(kGain)->InitDouble("Gain", 50., 0., 100.0, 0.01, "%");
 
 #if IPLUG_DSP
+  std::cout << "Hi DSP" << std::flush;
   this->LoadModel();
   if (this->have_module) {
     this->input_buffer.resize(this->input_buffer_size);
-    this->input_buffer_offset = 0;
+    this->input_buffer_offset = this->receptive_field - 1;
   }
 #endif
 
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
+  std::cout << "Hi Editor" << std::flush;
   mMakeGraphicsFunc = [&]() {
     return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS, GetScaleForScreen(PLUG_WIDTH, PLUG_HEIGHT));
   };
@@ -52,9 +55,16 @@ void NeuralAmpModeler::LoadModel()
   try {
     // Deserialize the ScriptModule from a file using torch::jit::load().
 #ifdef TORCHIN  // IPlugEffect.h
-    this->module = torch::jit::load("C:\\Users\\steve\\src\\neural - amp - modeler - 2\\bin\\train\\outputs\\2022 - 02 - 06 - 13 - 06 - 26\\model_epoch = 28.pt");
-#endif
+    const char* filename = "C:\\Users\\steve\\src\\neural-amp-modeler-2\\bin\\train\\outputs\\2022-02-06-13-06-26\\model_epoch=28.pt";
+    if (std::filesystem::exists(filename)) {
+      this->module = torch::jit::load(filename);
+      this->have_module = true;
+    }
+    else
+      this->have_module = false;
+#else
     this->have_module = true;
+#endif
   }
 #ifdef TORCHIN
   catch (const c10::Error& e) {
@@ -147,6 +157,7 @@ void NeuralAmpModeler::ProcessBlock(sample** inputs, sample** outputs, int nFram
   if (this->have_module) {
     this->ProcessInputBufferUpdate(inputs, nFrames);
     this->ProcessTorch(outputs, nFrames, nChans);
+    this->input_buffer_offset += nFrames;
   }
   else
     this->ProcessFallback(inputs, outputs, nFrames, nChans);

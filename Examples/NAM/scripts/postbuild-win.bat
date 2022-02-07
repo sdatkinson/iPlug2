@@ -7,11 +7,11 @@ set FORMAT=%1
 set NAME=%2
 set PLATFORM=%3
 set COPY_VST2=%4
-set BUILT_BINARY=%5
-set VST2_32_PATH=%6
-set VST2_64_PATH=%7 
-set VST3_32_PATH=%8
-set VST3_64_PATH=%9
+set OUTDIR=%5
+set BUILT_BINARY=%6
+set VST2_32_PATH=%7
+set VST2_64_PATH=%8 
+set VST3_32_PATH=%9
 shift
 shift 
 shift
@@ -19,6 +19,8 @@ shift
 shift 
 shift
 shift
+shift
+set VST3_64_PATH=%2
 set AAX_32_PATH=%3
 set AAX_64_PATH=%4
 set BUILD_DIR=%5
@@ -31,7 +33,8 @@ echo POSTBUILD SCRIPT VARIABLES ------------------------------------------------
 echo FORMAT %FORMAT% 
 echo NAME %NAME% 
 echo PLATFORM %PLATFORM% 
-echo COPY_VST2 %COPY_VST2% 
+echo COPY_VST2 %COPY_VST2%
+echo OUTDIR %OUTDIR%
 echo BUILT_BINARY %BUILT_BINARY% 
 echo VST2_32_PATH %VST2_32_PATH% 
 echo VST2_64_PATH %VST2_64_PATH% 
@@ -89,7 +92,9 @@ if %PLATFORM% == "x64" (
   )
 
   if %FORMAT% == ".exe" (
-    copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%_%PLATFORM%.exe
+    REM copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%_%PLATFORM%.exe
+    echo Copying LibTorch libraries...
+    copy /y %LIBTORCH_LIB%\*.dll %OUTDIR%
   )
 
   if %FORMAT% == ".dll" (
