@@ -116,6 +116,7 @@ if %PLATFORM% == "x64" (
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
 
     echo Copying all of the LibTorch libraries to VST3 BUNDLE...
+    echo Destination is %VST3_64_PATH%\%NAME%.vst3\Contents\x86_64-win\
     copy /y %LIBTORCH_LIB%\*.dll %VST3_64_PATH%\%NAME%.vst3\Contents\x86_64-win\
     if exist %VST3_64_PATH% (
       echo copying VST3 bundle to 64bit VST3 Plugins folder ...
