@@ -2,6 +2,7 @@
 
 #if IPLUG_DSP
 
+#include <memory>
 #include <vector>
 #include "IPlugConstants.h"
 
@@ -12,9 +13,9 @@ class DSP
 {
 public:
   // Basic null DSP: copy the inputs to the outputs
-  void process(sample** inputs, sample** outputs, const int num_channels, const int num_frames);
+  virtual void process(sample** inputs, sample** outputs, const int num_channels, const int num_frames);
   // Anything to take care of before next buffer comes in.
-  void finalize(const int num_frames);
+  virtual void finalize(const int num_frames);
   // Finally, the volume knob :)
   void process_gain(sample** outputs, const int num_channels, const int num_frames, const double gain);
 };
@@ -45,9 +46,11 @@ class Linear : public Buffer
 public:
   Linear();
 
-  void process(sample** inputs, sample** outputs, const int num_channels, const int num_frames);
+  void process(sample** inputs, sample** outputs, const int num_channels, const int num_frames) override;
 protected:
   std::vector<float> weight;
 };
+
+std::unique_ptr<DSP> get_dsp(const char* filename);
 
 #endif  // IPLUG_DSP

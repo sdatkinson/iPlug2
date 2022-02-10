@@ -1,3 +1,4 @@
+//#include "json.hpp"
 #include "dsp.h"
 
 void DSP::process(sample** inputs, sample** outputs, const int num_channels, const int num_frames)
@@ -14,7 +15,7 @@ void DSP::process_gain(sample** outputs, const int num_channels, const int num_f
 {
   for (int c = 0; c < num_channels; c++)
     for (int s = 0; s < num_frames; s++)
-    outputs[c][s] *= gain;
+      outputs[c][s] *= gain;
 }
 
 //=============================================================================
@@ -71,6 +72,7 @@ void Buffer::finalize(const int num_frames)
 
 Linear::Linear()
 {
+
   this->weight.resize(this->receptive_field);
   // I dunno
   for (int i = 0; i < this->weight.size(); i++)
@@ -97,4 +99,12 @@ void Linear::process(
   for (int c = 0; c < num_channels; c++)
     for (int s = 0; s < num_frames; s++)
       outputs[c][s] = (double) this->output_buffer[s];
+}
+
+
+//=============================================================================
+
+std::unique_ptr<DSP> get_dsp(const char* filename)
+{
+  return std::make_unique<Linear>();
 }
