@@ -134,6 +134,7 @@
     <ClCompile Include="..\..\..\IGraphics\IGraphicsEditorDelegate.cpp">
       <Filter>IGraphics</Filter>
     </ClCompile>
+    <ClCompile Include="..\dsp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../config.h" />
