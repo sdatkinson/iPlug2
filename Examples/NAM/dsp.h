@@ -2,6 +2,7 @@
 
 #if IPLUG_DSP
 
+#include <filesystem>
 #include <memory>
 #include <vector>
 #include "IPlugConstants.h"
@@ -24,7 +25,7 @@ public:
 class Buffer : public DSP
 {
 public:
-  Buffer();
+  Buffer(const int receptive_field);
   void finalize(const int num_frames);
   void set_receptive_field(const int new_receptive_field);
 protected:
@@ -44,13 +45,14 @@ protected:
 class Linear : public Buffer
 {
 public:
-  Linear();
+  Linear(const int receptive_field, const bool bias, const std::vector<float> &params);
 
   void process(sample** inputs, sample** outputs, const int num_channels, const int num_frames) override;
 protected:
   std::vector<float> weight;
+  float bias;
 };
 
-std::unique_ptr<DSP> get_dsp(const char* filename);
+std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname);
 
 #endif  // IPLUG_DSP

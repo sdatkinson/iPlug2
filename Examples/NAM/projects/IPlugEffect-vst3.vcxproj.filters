@@ -135,6 +135,8 @@
       <Filter>IGraphics</Filter>
     </ClCompile>
     <ClCompile Include="..\dsp.cpp" />
+    <ClCompile Include="..\cnpy.cpp" />
+    <ClCompile Include="..\numpy_util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../config.h" />
@@ -355,6 +357,8 @@
     <ClInclude Include="..\..\..\IPlug\IPlugPluginBase.h">
       <Filter>IPlug</Filter>
     </ClInclude>
+    <ClInclude Include="..\cnpy.h" />
+    <ClInclude Include="..\numpy_util.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resources">

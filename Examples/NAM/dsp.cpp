@@ -1,4 +1,8 @@
-//#include "json.hpp"
+#include <filesystem>
+#include <fstream>
+
+#include "json.hpp"
+#include "numpy_util.h"
 #include "dsp.h"
 
 void DSP::process(sample** inputs, sample** outputs, const int num_channels, const int num_frames)
@@ -20,7 +24,7 @@ void DSP::process_gain(sample** outputs, const int num_channels, const int num_f
 
 //=============================================================================
 
-Buffer::Buffer()
+Buffer::Buffer(const int receptive_field)
 {
   this->set_receptive_field(512);
 }
@@ -70,13 +74,14 @@ void Buffer::finalize(const int num_frames)
 
 //=============================================================================
 
-Linear::Linear()
+Linear::Linear(const int receptive_field, const bool bias, const std::vector<float> &params) : Buffer(receptive_field)
+//const std::vector<float> &params
 {
-
+  // TODO verify params vs params array size
   this->weight.resize(this->receptive_field);
-  // I dunno
   for (int i = 0; i < this->weight.size(); i++)
-    this->weight[i] = (float) 0.5 / (this->weight.size() - i);
+    this->weight[i] = params[receptive_field - 1 - i];
+  this->bias = bias ? params[receptive_field] : (float) 0.0;
 }
 
 void Linear::process(
@@ -90,7 +95,7 @@ void Linear::process(
 
   // Main computation!
   for (int i = 0; i < num_frames; i++) {
-    this->output_buffer[i] = 0.0;
+    this->output_buffer[i] = this->bias;
     const int offset = this->input_buffer_offset - this->weight.size() + i + 1;
     for (int j = 0, k = offset; j < this->weight.size(); j++, k++)
       this->output_buffer[i] += this->weight[j] * this->input_buffer[k];
@@ -104,7 +109,27 @@ void Linear::process(
 
 //=============================================================================
 
-std::unique_ptr<DSP> get_dsp(const char* filename)
+std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
 {
-  return std::make_unique<Linear>();
+  const std::filesystem::path config_filename = dirname / std::filesystem::path("config.json");
+  if (!std::filesystem::exists(config_filename))
+    throw std::exception("Config JSON doesn't exist!\n");
+  std::ifstream i(config_filename);
+  nlohmann::json j;
+  i >> j;
+  if (j["version"] != "0.1.0")
+    throw std::exception("Require version 0.1.0");
+
+  auto architecture = j["architecture"];
+  nlohmann::json config = j["config"];
+
+  if (architecture == "Linear") {
+    const int receptive_field = config["receptive_field"];
+    const bool bias = config["bias"];
+    std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
+    return std::make_unique<Linear>(receptive_field, bias, params);
+  }
+  else {
+    throw std::exception("Unrecognized architecture");
+  }
 }

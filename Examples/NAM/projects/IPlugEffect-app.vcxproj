@@ -327,8 +327,10 @@
     <ClInclude Include="..\..\..\IPlug\IPlugUtilities.h" />
     <ClInclude Include="..\..\..\IPlug\IPlug_include_in_plug_hdr.h" />
     <ClInclude Include="..\..\..\IPlug\IPlug_include_in_plug_src.h" />
+    <ClInclude Include="..\cnpy.h" />
     <ClInclude Include="..\dsp.h" />
     <ClInclude Include="..\IPlugEffect.h" />
+    <ClInclude Include="..\numpy_util.h" />
     <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
   <ItemGroup>
@@ -371,8 +373,10 @@
     <ClCompile Include="..\..\..\IPlug\IPlugPluginBase.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugProcessor.cpp" />
     <ClCompile Include="..\..\..\IPlug\IPlugTimer.cpp" />
+    <ClCompile Include="..\cnpy.cpp" />
     <ClCompile Include="..\dsp.cpp" />
     <ClCompile Include="..\IPlugEffect.cpp" />
+    <ClCompile Include="..\numpy_util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\main.rc" />

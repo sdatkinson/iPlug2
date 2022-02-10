@@ -12,7 +12,13 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
   GetParam(kGain)->InitDouble("Gain", 50., 0., 100.0, 0.01, "%");
 
 #if IPLUG_DSP
-  this->dsp = get_dsp("C:\\Users\\steve\\src\\neural-amp-modeler-2\\exported_models\\model_linear_test");
+  try {
+    this->dsp = get_dsp(std::filesystem::path("C:\\Users\\steve\\src\\neural-amp-modeler-2\\exported_models\\model"));
+  }
+  catch (std::exception& e) {
+    std::cerr << "Failed to read DSP module" << std::endl;
+    std::cerr << e.what() << std::endl;
+  }
 #endif
 
 #if IPLUG_EDITOR // http://bit.ly/2S64BDd
