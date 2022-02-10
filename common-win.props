@@ -66,6 +66,15 @@
     <AAX_ICON>$(AAX_SDK)\Utilities\PlugIn.ico</AAX_ICON>
     <VST_ICON>$(VST3_SDK)\doc\artwork\VST_Logo_Steinberg.ico</VST_ICON>
     <FAUST_LIB_PATH>$(DEPS_PATH)\Build\win\Faust\lib</FAUST_LIB_PATH>
+    <LIBTORCH_ROOT>$(IPLUG2_ROOT)\..\libtorch-win-shared-with-deps-1.10.2+cpu\libtorch</LIBTORCH_ROOT>
+    <LIBTORCH_INCLUDE>$(LIBTORCH_ROOT)\include</LIBTORCH_INCLUDE>
+    <LIBTORCH_TORCH_CSRC_API_INCLUDE>$(LIBTORCH_INCLUDE)\torch\csrc\api\include</LIBTORCH_TORCH_CSRC_API_INCLUDE>
+    <LIBTORCH_LIB>$(LIBTORCH_ROOT)\lib</LIBTORCH_LIB>
+    <LIBTORCH_DEBUG_ROOT>$(IPLUG2_ROOT)\..\libtorch-win-shared-with-deps-debug-1.10.2+cpu\libtorch</LIBTORCH_DEBUG_ROOT>
+    <LIBTORCH_DEBUG_INCLUDE>$(LIBTORCH_DEBUG_ROOT)\include</LIBTORCH_DEBUG_INCLUDE>
+    <LIBTORCH_DEBUG_TORCH_CSRC_API_INCLUDE>$(LIBTORCH_DEBUG_INCLUDE)\torch\csrc\api\include</LIBTORCH_DEBUG_TORCH_CSRC_API_INCLUDE>
+    <LIBTORCH_DEBUG_LIB>$(LIBTORCH_DEBUG_ROOT)\lib</LIBTORCH_DEBUG_LIB>
+    <JSON_INCLUDE>$(IPLUG2_ROOT)\..\json\include\nlohmann</JSON_INCLUDE>
   </PropertyGroup>
   <PropertyGroup>
     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
