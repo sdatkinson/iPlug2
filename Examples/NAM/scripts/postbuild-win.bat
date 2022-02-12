@@ -27,7 +27,6 @@ set BUILD_DIR=%5
 set VST_ICON=%6
 set AAX_ICON=%7
 set CREATE_BUNDLE_SCRIPT=%8
-set LIBTORCH_LIB=%9
 
 echo POSTBUILD SCRIPT VARIABLES -----------------------------------------------------
 echo FORMAT %FORMAT% 
@@ -44,7 +43,6 @@ echo BUILD_DIR %BUILD_DIR%
 echo VST_ICON %VST_ICON% 
 echo AAX_ICON %AAX_ICON% 
 echo CREATE_BUNDLE_SCRIPT %CREATE_BUNDLE_SCRIPT%
-echo LIBTORCH_LIB %LIBTORCH_LIB%
 echo END POSTBUILD SCRIPT VARIABLES -----------------------------------------------------
 
 if %PLATFORM% == "Win32" (
@@ -93,8 +91,6 @@ if %PLATFORM% == "x64" (
 
   if %FORMAT% == ".exe" (
     REM copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%_%PLATFORM%.exe
-    echo Copying LibTorch libraries...
-    copy /y %LIBTORCH_LIB%\*.dll %OUTDIR%
   )
 
   if %FORMAT% == ".dll" (
@@ -114,10 +110,6 @@ if %PLATFORM% == "x64" (
     echo copying 64bit binary to VST3 BUNDLE ...
     call %CREATE_BUNDLE_SCRIPT% %BUILD_DIR%\%NAME%.vst3 %VST_ICON% %FORMAT%
     copy /y %BUILT_BINARY% %BUILD_DIR%\%NAME%.vst3\Contents\x86_64-win
-
-    echo Copying all of the LibTorch libraries to VST3 BUNDLE...
-    echo Destination is %VST3_64_PATH%\%NAME%.vst3\Contents\x86_64-win\
-    copy /y %LIBTORCH_LIB%\*.dll %VST3_64_PATH%\%NAME%.vst3\Contents\x86_64-win\
     if exist %VST3_64_PATH% (
       echo copying VST3 bundle to 64bit VST3 Plugins folder ...
       call %CREATE_BUNDLE_SCRIPT% %VST3_64_PATH%\%NAME%.vst3 %VST_ICON% %FORMAT%
