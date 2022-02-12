@@ -257,6 +257,7 @@ int wavenet::WaveNetBlock::get_out_channels() const
 {
   return this->conv.get_out_channels();
 }
+
 wavenet::Head::Head(const int channels, std::vector<float>::iterator& params)
 {
   this->weight.resize(channels);
