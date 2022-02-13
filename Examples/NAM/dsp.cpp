@@ -58,33 +58,37 @@ void Buffer::update_buffers(sample** inputs, const int num_frames)
 {
   // Make sure that the buffer is big enough for the receptive field and the frames needed!
   {
-    const int minimum_input_buffer_size = this->receptive_field + _INPUT_BUFFER_SAFETY_FACTOR * num_frames;
-      if (this->input_buffer.size() < minimum_input_buffer_size)
-        this->input_buffer.resize(minimum_input_buffer_size);
+    const long minimum_input_buffer_size = (long)this->receptive_field + _INPUT_BUFFER_SAFETY_FACTOR * (long)num_frames;
+    if (this->input_buffer.size() < minimum_input_buffer_size)
+      this->input_buffer.resize(minimum_input_buffer_size);
   }
 
   // If we'd run off the end of the input buffer, then we need to move the data back to the start of the
   // buffer and start again.
-  if (this->input_buffer_offset + num_frames > this->input_buffer.size()) {
-    // Copy the input buffer back
-    // RF-1 samples because we've got at least one new one inbound.
-    for (int i = 0, j = this->input_buffer_offset - this->receptive_field; i < this->receptive_field; i++, j++)
-      this->input_buffer[i] = this->input_buffer[j];
-    // And reset the offset.
-    // Even though we could be stingy about that one sample that we won't be using
-    // (because a new set is incoming) it's probably not worth the hyper-optimization
-    // and liable for bugs.
-    // And the code looks way tidier this way.
-    this->input_buffer_offset = this->receptive_field;
-  }
+  if (this->input_buffer_offset + num_frames > this->input_buffer.size())
+    this->rewind_buffers();
   // Put the new samples into the input buffer
   {
-    const int c = 0;  // MONO
-    for (int i = this->input_buffer_offset, j = 0; j < num_frames; i++, j++)
+    const long c = 0;  // MONO
+    for (long i = this->input_buffer_offset, j = 0; j < num_frames; i++, j++)
       this->input_buffer[i] = (float) inputs[c][j];
   }
   // And resize the output buffer:
   this->output_buffer.resize(num_frames);
+}
+
+void Buffer::rewind_buffers()
+{
+  // Copy the input buffer back
+  // RF-1 samples because we've got at least one new one inbound.
+  for (long i = 0, j = this->input_buffer_offset - this->receptive_field; i < this->receptive_field; i++, j++)
+    this->input_buffer[i] = this->input_buffer[j];
+  // And reset the offset.
+  // Even though we could be stingy about that one sample that we won't be using
+  // (because a new set is incoming) it's probably not worth the hyper-optimization
+  // and liable for bugs.
+  // And the code looks way tidier this way.
+  this->input_buffer_offset = this->receptive_field;
 }
 
 void Buffer::reset_input_buffer()
@@ -121,8 +125,8 @@ void Linear::process(
   this->Buffer::update_buffers(inputs, num_frames);
 
   // Main computation!
-  for (int i = 0; i < num_frames; i++) {
-    const int offset = this->input_buffer_offset - this->weight.size() + i + 1;
+  for (long i = 0; i < num_frames; i++) {
+    const long offset = this->input_buffer_offset - this->weight.size() + i + 1;
     auto input = Eigen::Map<const Eigen::VectorXf>(&this->input_buffer[offset], this->receptive_field);
     this->output_buffer[i] = this->bias + this->weight.dot(input);
   }
@@ -160,31 +164,38 @@ void wavenet::Conv1D::set_params(
   this->dilation = dilation;
 }
 
-void wavenet::Conv1D::process_(const Eigen::MatrixXf &input, Eigen::MatrixXf &output) const
+void wavenet::Conv1D::process_(
+  const Eigen::MatrixXf &input,
+  Eigen::MatrixXf &output,
+  const long i_start,
+  const long i_end
+) const
 {
+  // This is the clever part ;)
+  
   // #correct
   // #speed
   if (this->bias.size() == 0)
-    for (int j = 0; j < output.cols(); j++)
+    for (long i = i_start; i < i_end; i++)
       // FIXME hot-code width 2 ;)
       // FIXME verify correct...probably not!
-      output.col(j) = this->weight[0] * input.col(j) + this->weight[1] * input.col(j + this->dilation);
+      output.col(i) = this->weight[0] * input.col(i - this->dilation) + this->weight[1] * input.col(i);
   else
-    for (int j = 0; j < output.cols(); j++)
+    for (long i = i_start; i < i_end; i++)
       // FIXME hot-code width 2 ;)
       // FIXME verify correct...probably not!
-      output.col(j) = this->bias + this->weight[0] * input.col(j) + this->weight[1] * input.col(j + this->dilation);
+      output.col(i) = this->bias + this->weight[0] * input.col(i - this->dilation) + this->weight[1] * input.col(i);
 }
 
-int wavenet::Conv1D::get_num_params() const
+long wavenet::Conv1D::get_num_params() const
 {
-  int num_params = this->bias.size();
-  for (int i = 0; i < this->weight.size(); i++)
+  long num_params = this->bias.size();
+  for (long i = 0; i < this->weight.size(); i++)
     num_params += this->weight[i].size();
   return num_params;
 }
 
-int wavenet::Conv1D::get_out_channels() const
+long wavenet::Conv1D::get_out_channels() const
 {
   return this->weight[0].rows();
 }
@@ -214,11 +225,11 @@ wavenet::BatchNorm::BatchNorm(const int dim, std::vector<float>::iterator& param
   this->loc = bias - this->scale.cwiseProduct(running_mean);
 }
 
-void wavenet::BatchNorm::process_(Eigen::MatrixXf& x) const
+void wavenet::BatchNorm::process_(Eigen::MatrixXf& x, const long i_start, const long i_end) const
 {
   // todo using colwise?
   // #speed but conv probably dominates
-  for (int i = 0; i < x.cols(); i++) {
+  for (int i = i_start; i < i_end; i++) {
     x.col(i) = x.col(i).cwiseProduct(this->scale);
     x.col(i) += this->loc;
   }
@@ -238,18 +249,27 @@ void wavenet::WaveNetBlock::set_params(
     this->batchnorm = BatchNorm(out_channels, params);
 }
 
-void wavenet::WaveNetBlock::process_(const Eigen::MatrixXf& input, Eigen::MatrixXf &output) const
+void wavenet::WaveNetBlock::process_(
+  const Eigen::MatrixXf& input,
+  Eigen::MatrixXf &output,
+  const long i_start,
+  const long i_end
+) const
 {
-  this->conv.process_(input, output);
+  this->conv.process_(input, output, i_start, i_end);
   if (this->_batchnorm)
-    this->batchnorm.process_(output);
-  this->tanh_(output);
+    this->batchnorm.process_(output, i_start, i_end);
+  this->tanh_(output, i_start, i_end);
 }
 
-void wavenet::WaveNetBlock::tanh_(Eigen::MatrixXf &x) const
+void wavenet::WaveNetBlock::tanh_(
+  Eigen::MatrixXf &x,
+  const long i_start,
+  const long i_end
+) const
 {
-  for (int j = 0; j < x.cols(); j++)
-    for (int i = 0; i < x.rows(); i++)
+  for (long j = i_start; j < i_end; j++)
+    for (long i = 0; i < x.rows(); i++)
       x(i, j) = tanh(x(i, j));
 }
 
@@ -266,11 +286,16 @@ wavenet::Head::Head(const int channels, std::vector<float>::iterator& params)
   this->bias = *(params++);
 }
 
-Eigen::VectorXf wavenet::Head::process(const Eigen::MatrixXf &input) const
+Eigen::VectorXf wavenet::Head::process(
+  const Eigen::MatrixXf &input,
+  const long i_start,
+  const long i_end
+) const
 {
-  Eigen::VectorXf output(input.cols());
-  for (int i = 0; i < input.cols(); i++)
-    output(i) = this->bias + input.col(i).dot(this->weight);
+  const long length = i_end - i_start;
+  Eigen::VectorXf output(length);
+  for (long i = 0, j=i_start; i < length; i++, j++)
+    output(i) = this->bias + input.col(j).dot(this->weight);
   return output;
 }
 
@@ -304,14 +329,15 @@ void wavenet::WaveNet::process(
 {
   this->update_buffers(inputs, num_frames);
   // Main computation!
-  const int receptive_field = this->_get_receptive_field();
-  const int offset = this->input_buffer_offset - receptive_field + 1;
-  const int input_length = receptive_field + num_frames - 1;
-  for (int i = 0; i < input_length; i++)
-    this->block_vals[0](0, i) = this->input_buffer[i + offset];
-  for (int i = 0; i < this->blocks.size(); i++)
-    this->blocks[i].process_(this->block_vals[i], this->block_vals[i + 1]);
-  Eigen::VectorXf output = this->head.process(this->block_vals[this->blocks.size()]);
+  const int i_start = this->input_buffer_offset;
+  const long i_end = i_start + (long)num_frames;
+  //TODO one unnecessary copy :/ #speed
+  for (int i = i_start; i < i_end; i++)
+    this->block_vals[0](0, i) = this->input_buffer[i];
+  for (long i = 0; i < this->blocks.size(); i++)
+    this->blocks[i].process_(this->block_vals[i], this->block_vals[i + 1], i_start, i_end);
+  // TODO clean up this allocation
+  Eigen::VectorXf output = this->head.process(this->block_vals[this->blocks.size()], i_start, i_end);
   // Copy to external output arrays:
   for (int c = 0; c < num_channels; c++)
     for (int s = 0; s < num_frames; s++)
@@ -336,18 +362,28 @@ int wavenet::WaveNet::_get_receptive_field() const
 void wavenet::WaveNet::update_buffers(sample** inputs, const int num_frames)
 {
   this->Buffer::update_buffers(inputs, num_frames);
-
-  int buffer_size = num_frames + this->_get_receptive_field() - 1;
+  const long buffer_size = this->input_buffer.size();
   this->block_vals[0].resize(1, buffer_size);
-  for (int i = 0; i < this->blocks.size(); i++) {
-    const int dilation = mypow(2, i);
-    // Assume kernel size 2
-    buffer_size -= dilation;
-    // Resize output buffer:
-    this->block_vals[i + 1].resize(this->blocks[i].get_out_channels(), buffer_size);
+  for (long i = 1; i < this->block_vals.size(); i++) {
+    this->block_vals[i].resize(this->blocks[i-1].get_out_channels(), buffer_size);
   }
-  if (buffer_size != num_frames)
-    throw std::exception("Output of convolutions should match num_frames!");
+}
+
+void wavenet::WaveNet::rewind_buffers()
+{
+  //Need to rewind the block vals first because Buffer::rewind_buffers()
+  //resets the offset index
+  //The last block_vals is the output of the last block and doesn't need to be
+  //rewound.
+  for (long k = 0; k < this->block_vals.size()-1; k++) {
+    //We actually don't need to pull back a lot...just as far as the first input sample would
+    //grab from dilation
+    const long dilation = mypow(2, k);
+    for (long i = this->receptive_field - dilation, j = this->input_buffer_offset - dilation; i < this->receptive_field; i++, j++)
+      for (long r=0; r<this->block_vals[k].rows(); r++)
+      this->block_vals[k](r,i) = this->block_vals[k](r,j);
+  }
+  this->Buffer::rewind_buffers();
 }
 
 //=============================================================================

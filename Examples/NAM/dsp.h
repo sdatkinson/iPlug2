@@ -43,11 +43,12 @@ protected:
   const int input_buffer_channels = 1;  // Mono
   int receptive_field;
   // First location where we add new samples from the input
-  int input_buffer_offset;
+  long input_buffer_offset;
   std::vector<float> input_buffer;
   std::vector<float> output_buffer;
 
   virtual void update_buffers(sample** inputs, const int num_frames);
+  virtual void rewind_buffers();
   void reset_input_buffer();
 };
 
@@ -67,6 +68,9 @@ protected:
 #define WAVENET_KERNEL_SIZE 2
 
 namespace wavenet {
+  // Custom Conv that avoids re-computing on pieces of the input and trusts
+  // that the corresponding outputs are where they need to be.
+  // Beware: this is clever!
   class Conv1D
   {
   public:
@@ -78,9 +82,14 @@ namespace wavenet {
       const bool do_bias,
       std::vector<float>::iterator& params
     );
-    void process_(const Eigen::MatrixXf &input, Eigen::MatrixXf &output) const;
-    int get_num_params() const;
-    int get_out_channels() const;
+    void process_(
+      const Eigen::MatrixXf &input,
+      Eigen::MatrixXf &output,
+      const long i_start,
+      const long i_end
+    ) const;
+    long get_num_params() const;
+    long get_out_channels() const;
   private:
     // Gonna wing this...
     // conv[kernel](cout, cin)
@@ -94,7 +103,11 @@ namespace wavenet {
   public:
     BatchNorm() {};
     BatchNorm(const int dim, std::vector<float>::iterator& params);
-    void process_(Eigen::MatrixXf& input) const;
+    void process_(
+      Eigen::MatrixXf& input,
+      const long i_start,
+      const long i_end
+    ) const;
 
   private:
     // TODO simplify to just ax+b
@@ -117,14 +130,19 @@ namespace wavenet {
       const bool batchnorm,
       std::vector<float>::iterator& params
     );
-    void process_(const Eigen::MatrixXf& input, Eigen::MatrixXf &output) const;
+    void process_(
+      const Eigen::MatrixXf& input,
+      Eigen::MatrixXf &output,
+      const long i_start,
+      const long i_end
+    ) const;
     int get_out_channels() const;
   private:
     Conv1D conv;
     BatchNorm batchnorm;
     bool _batchnorm;
     // And the Tanh is assumed for now.
-    void tanh_(Eigen::MatrixXf &x) const;
+    void tanh_(Eigen::MatrixXf &x, const long i_start, const long i_end) const;
   };
 
   class Head
@@ -132,7 +150,11 @@ namespace wavenet {
   public:
     Head() { this->bias = (float)0.0; };
     Head(const int channels, std::vector<float>::iterator& params);
-    Eigen::VectorXf process(const Eigen::MatrixXf &input) const;
+    Eigen::VectorXf process(
+      const Eigen::MatrixXf &input,
+      const long i_start,
+      const long i_end
+    ) const;
   private:
     Eigen::VectorXf weight;
     float bias;
@@ -155,6 +177,7 @@ namespace wavenet {
     void _verify_params(const int channels, const int num_layers, const bool batchnorm, const int actual_params);
     int _get_receptive_field() const;
     void update_buffers(sample** inputs, const int num_frames);
+    void rewind_buffers();
   };
 };  // namespace wavenet
 
