@@ -150,8 +150,9 @@ namespace wavenet {
   public:
     Head() { this->bias = (float)0.0; };
     Head(const int channels, std::vector<float>::iterator& params);
-    Eigen::VectorXf process(
+    void process_(
       const Eigen::MatrixXf &input,
+      Eigen::VectorXf &output,
       const long i_start,
       const long i_end
     ) const;
@@ -173,6 +174,7 @@ namespace wavenet {
   protected:
     std::vector<WaveNetBlock> blocks;
     std::vector<Eigen::MatrixXf> block_vals;
+    Eigen::VectorXf head_output;
     Head head;
     void _verify_params(const int channels, const int num_layers, const bool batchnorm, const int actual_params);
     int _get_receptive_field() const;

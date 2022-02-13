@@ -6,7 +6,7 @@
 #include "numpy_util.h"
 #include "dsp.h"
 
-constexpr auto _INPUT_BUFFER_SAFETY_FACTOR = 8;
+constexpr auto _INPUT_BUFFER_SAFETY_FACTOR = 32;
 
 void DSP::process(sample** inputs, sample** outputs, const int num_channels, const int num_frames)
 {
@@ -286,17 +286,17 @@ wavenet::Head::Head(const int channels, std::vector<float>::iterator& params)
   this->bias = *(params++);
 }
 
-Eigen::VectorXf wavenet::Head::process(
+void wavenet::Head::process_(
   const Eigen::MatrixXf &input,
+  Eigen::VectorXf &output,
   const long i_start,
   const long i_end
 ) const
 {
   const long length = i_end - i_start;
-  Eigen::VectorXf output(length);
+  output.resize(length);
   for (long i = 0, j=i_start; i < length; i++, j++)
     output(i) = this->bias + input.col(j).dot(this->weight);
-  return output;
 }
 
 wavenet::WaveNet::WaveNet(
@@ -337,11 +337,16 @@ void wavenet::WaveNet::process(
   for (long i = 0; i < this->blocks.size(); i++)
     this->blocks[i].process_(this->block_vals[i], this->block_vals[i + 1], i_start, i_end);
   // TODO clean up this allocation
-  Eigen::VectorXf output = this->head.process(this->block_vals[this->blocks.size()], i_start, i_end);
+  this->head.process_(
+    this->block_vals[this->blocks.size()],
+    this->head_output,
+    i_start,
+    i_end
+  );
   // Copy to external output arrays:
   for (int c = 0; c < num_channels; c++)
     for (int s = 0; s < num_frames; s++)
-      outputs[c][s] = (double)output(s);
+      outputs[c][s] = (double)this->head_output(s);
 }
 
 void wavenet::WaveNet::_verify_params(
@@ -379,9 +384,13 @@ void wavenet::WaveNet::rewind_buffers()
     //We actually don't need to pull back a lot...just as far as the first input sample would
     //grab from dilation
     const long dilation = mypow(2, k);
-    for (long i = this->receptive_field - dilation, j = this->input_buffer_offset - dilation; i < this->receptive_field; i++, j++)
+    for (
+      long i = this->receptive_field - dilation, j = this->input_buffer_offset - dilation;
+      j < this->input_buffer_offset;
+      i++, j++
+    )
       for (long r=0; r<this->block_vals[k].rows(); r++)
-      this->block_vals[k](r,i) = this->block_vals[k](r,j);
+        this->block_vals[k](r, i) = this->block_vals[k](r, j);
   }
   this->Buffer::rewind_buffers();
 }
