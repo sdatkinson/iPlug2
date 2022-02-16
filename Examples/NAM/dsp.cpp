@@ -1,3 +1,4 @@
+#include <algorithm>  // std::max_element
 #include <cmath>  // pow, tanh
 #include <filesystem>
 #include <fstream>
@@ -56,11 +57,19 @@ void Buffer::set_receptive_field(const int new_receptive_field, const int input_
 
 void Buffer::update_buffers(sample** inputs, const int num_frames)
 {
-  // Make sure that the buffer is big enough for the receptive field and the frames needed!
+  //Make sure that the buffer is big enough for the receptive field and the
+  //frames needed!
   {
-    const long minimum_input_buffer_size = (long)this->receptive_field + _INPUT_BUFFER_SAFETY_FACTOR * (long)num_frames;
-    if (this->input_buffer.size() < minimum_input_buffer_size)
-      this->input_buffer.resize(minimum_input_buffer_size);
+    const long minimum_input_buffer_size =
+      (long)this->receptive_field
+      + _INPUT_BUFFER_SAFETY_FACTOR * (long)num_frames;
+    if (this->input_buffer.size() < minimum_input_buffer_size) {
+      long new_buffer_size = 2;
+      while (new_buffer_size < minimum_input_buffer_size)
+        new_buffer_size *= 2;
+      this->input_buffer.resize(new_buffer_size);
+    }
+      
   }
 
   // If we'd run off the end of the input buffer, then we need to move the data back to the start of the
@@ -240,6 +249,7 @@ void wavenet::WaveNetBlock::set_params(
   const int out_channels,
   const int dilation,
   const bool batchnorm,
+  const std::string activation,
   std::vector<float>::iterator &params
 )
 {
@@ -247,6 +257,7 @@ void wavenet::WaveNetBlock::set_params(
   this->conv.set_params(in_channels, out_channels, dilation, !batchnorm, params);
   if (this->_batchnorm)
     this->batchnorm = BatchNorm(out_channels, params);
+  this->activation = activation;
 }
 
 void wavenet::WaveNetBlock::process_(
@@ -259,7 +270,12 @@ void wavenet::WaveNetBlock::process_(
   this->conv.process_(input, output, i_start, i_end);
   if (this->_batchnorm)
     this->batchnorm.process_(output, i_start, i_end);
-  this->tanh_(output, i_start, i_end);
+  if (this->activation == "Tanh")
+    this->tanh_(output, i_start, i_end);
+  else if (this->activation == "ReLU")
+    this->relu_(output, i_start, i_end);
+  else
+    throw std::exception("Unrecognized activation");
 }
 
 void wavenet::WaveNetBlock::tanh_(
@@ -271,6 +287,17 @@ void wavenet::WaveNetBlock::tanh_(
   for (long j = i_start; j < i_end; j++)
     for (long i = 0; i < x.rows(); i++)
       x(i, j) = tanh(x(i, j));
+}
+
+void wavenet::WaveNetBlock::relu_(
+  Eigen::MatrixXf& x,
+  const long i_start,
+  const long i_end
+) const
+{
+  for (long j = i_start; j < i_end; j++)
+    for (long i = 0; i < x.rows(); i++)
+      x(i, j) = x(i, j) < (float)0.0 ? (float)0.0 : x(i, j);
 }
 
 int wavenet::WaveNetBlock::get_out_channels() const
@@ -301,19 +328,20 @@ void wavenet::Head::process_(
 
 wavenet::WaveNet::WaveNet(
   const int channels,
-  const int num_layers,
+  const std::vector<int> &dilations,
   const bool batchnorm,
+  const std::string activation,
   std::vector<float> &params
 ) :
-  Buffer(mypow(2, num_layers))
+  Buffer(*std::max_element(dilations.begin(), dilations.end()))
 {
-  this->_verify_params(channels, num_layers, batchnorm, params.size());
-  this->blocks.resize(num_layers);
+  this->_verify_params(channels, dilations, batchnorm, params.size());
+  this->blocks.resize(dilations.size());
   std::vector<float>::iterator it = params.begin();
   int in_channels = 1;
-  for (int i = 0; i < num_layers; i++) 
-    this->blocks[i].set_params(i == 0 ? 1 : channels, channels, mypow(2, i), batchnorm, it);
-  this->block_vals.resize(num_layers + 1);
+  for (int i = 0; i < dilations.size(); i++)
+    this->blocks[i].set_params(i == 0 ? 1 : channels, channels, dilations[i], batchnorm, activation, it);
+  this->block_vals.resize(this->blocks.size() + 1);
   this->head = Head(channels, it);
   if (it != params.end())
     throw std::exception("Didn't touch all the params when initializing wavenet");
@@ -351,7 +379,7 @@ void wavenet::WaveNet::process(
 
 void wavenet::WaveNet::_verify_params(
   const int channels,
-  const int num_layers,
+  const std::vector<int> &dilations ,
   const bool batchnorm,
   const int actual_params
 )
@@ -359,19 +387,13 @@ void wavenet::WaveNet::_verify_params(
   // TODO
 }
 
-int wavenet::WaveNet::_get_receptive_field() const
-{
-  return mypow(2, this->blocks.size());
-}
-
 void wavenet::WaveNet::update_buffers(sample** inputs, const int num_frames)
 {
   this->Buffer::update_buffers(inputs, num_frames);
   const long buffer_size = this->input_buffer.size();
   this->block_vals[0].resize(1, buffer_size);
-  for (long i = 1; i < this->block_vals.size(); i++) {
+  for (long i = 1; i < this->block_vals.size(); i++)
     this->block_vals[i].resize(this->blocks[i-1].get_out_channels(), buffer_size);
-  }
 }
 
 void wavenet::WaveNet::rewind_buffers()
@@ -383,7 +405,7 @@ void wavenet::WaveNet::rewind_buffers()
   for (long k = 0; k < this->block_vals.size()-1; k++) {
     //We actually don't need to pull back a lot...just as far as the first input sample would
     //grab from dilation
-    const long dilation = mypow(2, k);
+    const long dilation = this->blocks[k].conv.get_dilation();
     for (
       long i = this->receptive_field - dilation, j = this->input_buffer_offset - dilation;
       j < this->input_buffer_offset;
@@ -405,8 +427,8 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
   std::ifstream i(config_filename);
   nlohmann::json j;
   i >> j;
-  if (j["version"] != "0.1.0")
-    throw std::exception("Require version 0.1.0");
+  if (j["version"] != "0.2.0")
+    throw std::exception("Require version 0.2.0");
 
   auto architecture = j["architecture"];
   nlohmann::json config = j["config"];
@@ -419,20 +441,15 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
   }
   else if (architecture == "WaveNet") {
     const int channels = config["channels"];
-    const int num_layers = config["num_layers"];
     const bool batchnorm = config["batchnorm"];
+    std::vector<int> dilations;
+    for (int i = 0; i < config["dilations"].size(); i++)
+      dilations.push_back(config["dilations"][i]);
+    const std::string activation = config["activation"];
     std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
-    return std::make_unique<wavenet::WaveNet>(channels, num_layers, batchnorm, params);
+    return std::make_unique<wavenet::WaveNet>(channels, dilations, batchnorm, activation, params);
   }
   else {
     throw std::exception("Unrecognized architecture");
   }
-}
-
-int mypow(const int base, const int exponent)
-{
-  int result = 1;
-  for (int i = 0; i < exponent; i++)
-    result *= base;
-  return result;
 }

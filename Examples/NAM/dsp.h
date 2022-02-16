@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iterator>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -90,6 +91,7 @@ namespace wavenet {
     ) const;
     long get_num_params() const;
     long get_out_channels() const;
+    int get_dilation() const { return this->dilation; };
   private:
     // Gonna wing this...
     // conv[kernel](cout, cin)
@@ -128,6 +130,7 @@ namespace wavenet {
       const int out_channels,
       const int dilation,
       const bool batchnorm,
+      const std::string activation,
       std::vector<float>::iterator& params
     );
     void process_(
@@ -137,12 +140,13 @@ namespace wavenet {
       const long i_end
     ) const;
     int get_out_channels() const;
-  private:
     Conv1D conv;
+  private:
     BatchNorm batchnorm;
     bool _batchnorm;
-    // And the Tanh is assumed for now.
+    std::string activation;
     void tanh_(Eigen::MatrixXf &x, const long i_start, const long i_end) const;
+    void relu_(Eigen::MatrixXf& x, const long i_start, const long i_end) const;
   };
 
   class Head
@@ -166,8 +170,9 @@ namespace wavenet {
   public:
     WaveNet(
       const int channels,
-      const int num_layers,
+      const std::vector<int>& dilations,
       const bool batchnorm,
+      const std::string activation,
       std::vector<float> &params
     );
     void process(sample** inputs, sample** outputs, const int num_channels, const int num_frames) override;
@@ -176,8 +181,7 @@ namespace wavenet {
     std::vector<Eigen::MatrixXf> block_vals;
     Eigen::VectorXf head_output;
     Head head;
-    void _verify_params(const int channels, const int num_layers, const bool batchnorm, const int actual_params);
-    int _get_receptive_field() const;
+    void _verify_params(const int channels, const std::vector<int> &dilations, const bool batchnorm, const int actual_params);
     void update_buffers(sample** inputs, const int num_frames);
     void rewind_buffers();
   };
@@ -186,8 +190,5 @@ namespace wavenet {
 // Utilities ==================================================================
 
 std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname);
-
-// Why am I doing this lol
-int mypow(const int base, const int exponent);
 
 #endif  // IPLUG_DSP
