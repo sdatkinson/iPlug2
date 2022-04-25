@@ -32,7 +32,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->AttachPanelBackground(COLOR_GRAY);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
     const IRECT b = pGraphics->GetBounds();
-    const char* name = "NAM2 (Protone Bulb)";
+    const char* name = "NAM (Deluxe Reverb)";
     pGraphics->AttachControl(new ITextControl(b.GetMidVPadded(50), name, IText(50)));
     pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(-100), kGain));
   };
