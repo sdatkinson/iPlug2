@@ -191,4 +191,7 @@ namespace wavenet {
 
 std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname);
 
+// Hard-coded model:
+std::unique_ptr<DSP> get_hard_dsp();
+
 #endif  // IPLUG_DSP

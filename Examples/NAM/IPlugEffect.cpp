@@ -9,11 +9,12 @@
 NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 : Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
-  GetParam(kGain)->InitDouble("Gain", 50., 0., 100.0, 0.01, "%");
+  GetParam(kGain)->InitDouble("Gain", 100., 0., 1000.0, 0.01, "%");
 
 #if IPLUG_DSP
   try {
-    this->dsp = get_dsp(std::filesystem::path("C:\\Users\\steve\\src\\neural-amp-modeler-2\\exported_models\\model"));
+    //this->dsp = get_dsp(std::filesystem::path("C:\\Program Files\\Common Files\\VST3\\NAM2 models\\DR-Proto"));
+    this->dsp = get_hard_dsp();
   }
   catch (std::exception& e) {
     std::cerr << "Failed to read DSP module" << std::endl;
@@ -31,11 +32,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->AttachPanelBackground(COLOR_GRAY);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
     const IRECT b = pGraphics->GetBounds();
-#ifdef TORCHIN
-    const char* name = "NAM2 (Torch)";
-#else
-    const char* name = "NAM2";
-#endif
+    const char* name = "NAM2 (Protone Bulb)";
     pGraphics->AttachControl(new ITextControl(b.GetMidVPadded(50), name, IText(50)));
     pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100).GetVShifted(-100), kGain));
   };

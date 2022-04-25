@@ -6,6 +6,7 @@
 #include "json.hpp"
 #include "numpy_util.h"
 #include "dsp.h"
+#include "HardCodedModel.h"
 
 constexpr auto _INPUT_BUFFER_SAFETY_FACTOR = 32;
 
@@ -452,4 +453,12 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
   else {
     throw std::exception("Unrecognized architecture");
   }
+}
+
+std::unique_ptr<DSP> get_hard_dsp()
+{
+  // Values are defined in HardCodedModel.h
+  if (PYTHON_MODEL_VERSION != "0.2.0")
+    throw std::exception("Require version 0.2.0");
+  return std::make_unique<wavenet::WaveNet>(CHANNELS, DILATIONS, BATCHNORM, ACTIVATION, PARAMS);
 }

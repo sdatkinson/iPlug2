@@ -1,15 +1,16 @@
-#define PLUG_NAME "NAM2"
+#define PLUG_NAME "NAM Deluxe Reverb"
+#define BUNDLE_NAME "NAM Deluxe Reverb"
+#define PLUG_UNIQUE_ID 'NDRV'
+
 #define PLUG_MFR "Steven Atkinson"
 #define PLUG_VERSION_HEX 0x00010000
 #define PLUG_VERSION_STR "0.0.0"
-#define PLUG_UNIQUE_ID 'Ipef'
+
 #define PLUG_MFR_ID 'SDA'
 #define PLUG_URL_STR "https://github.com/sdatkinson/neural-amp-modeler-2"
 #define PLUG_EMAIL_STR "spam@me.com"
 #define PLUG_COPYRIGHT_STR "Copyright 2022 Steven Atkinson"
 #define PLUG_CLASS_NAME NeuralAmpModeler
-
-#define BUNDLE_NAME "NAM2"
 #define BUNDLE_MFR "SDA"
 #define BUNDLE_DOMAIN "com"
 
