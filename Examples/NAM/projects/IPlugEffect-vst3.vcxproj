@@ -335,10 +335,14 @@
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_Parameter.h" />
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_ProcessorBase.h" />
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_View.h" />
+    <ClInclude Include="..\activations.h" />
     <ClInclude Include="..\cnpy.h" />
+    <ClInclude Include="..\dsp.h" />
     <ClInclude Include="..\IPlugEffect.h" />
+    <ClInclude Include="..\lstm.h" />
     <ClInclude Include="..\numpy_util.h" />
     <ClInclude Include="..\resources\resource.h" />
+    <ClInclude Include="..\util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Dependencies\IPlug\VST3_SDK\base\source\baseiids.cpp" />
@@ -401,8 +405,11 @@
     <ClCompile Include="..\..\..\IPlug\VST3\IPlugVST3_ProcessorBase.cpp" />
     <ClCompile Include="..\cnpy.cpp" />
     <ClCompile Include="..\dsp.cpp" />
+    <ClCompile Include="..\get_dsp.cpp" />
     <ClCompile Include="..\IPlugEffect.cpp" />
+    <ClCompile Include="..\lstm.cpp" />
     <ClCompile Include="..\numpy_util.cpp" />
+    <ClCompile Include="..\util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\main.rc" />
