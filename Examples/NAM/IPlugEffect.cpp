@@ -22,8 +22,8 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 
 #if IPLUG_DSP
   try {
-    this->dsp = get_dsp(std::filesystem::path("C:\\Users\\steve\\src\\neural-amp-modeler-private\\bin\\export\\outputs\\parametric\\Nolly_3\\2022-07-09-01"));
-    // this->dsp = get_hard_dsp();
+     //this->dsp = get_dsp(std::filesystem::path("C:\\Path\\to\\your\\exported\\model\\directory"));
+     this->dsp = get_hard_dsp();
   }
   catch (std::exception& e) {
     std::cerr << "Failed to read DSP module" << std::endl;
@@ -41,7 +41,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->AttachPanelBackground(COLOR_GRAY);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
     const IRECT b = pGraphics->GetBounds();
-    const char* name = "NAM (5150)";
+    const char* name = "NAM (Deluxe Reverb)";
     pGraphics->AttachControl(new ITextControl(b.GetMidVPadded(50), name, IText(50)));
     // Knobs
     {

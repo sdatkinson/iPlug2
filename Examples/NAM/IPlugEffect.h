@@ -17,13 +17,18 @@ enum EParams
 {
   kInputGain = 0,
   kOutputGain,
-  kParametricGain,
-  kparametricLow,
-  kParametricMid,
-  kparametricHigh,
-  kParametricMaster,
-  kparametricPresence,
-  kParametricREsonance,
+  // 5150
+  //kParametricGain,
+  //kparametricLow,
+  //kParametricMid,
+  //kparametricHigh,
+  //kParametricMaster,
+  //kparametricPresence,
+  //kParametricResonance,
+  // OD
+  //kParametricDrive,
+  //kParametricLevel,
+  //kParametricTone,
   kNumParams
 };
 
@@ -46,7 +51,10 @@ private:
   // Required output
   void ProcessFallback(sample** inputs, sample** outputs, const int nChans, const int nFrames);
 
-  // Nolly 3
-  const std::vector<std::string> _param_names{ "Input", "Output", "Gain", "Low", "Mid", "High", "Master", "Presence", "Resonance" };
+  // 5150
+  // const std::vector<std::string> _param_names{ "Input", "Output", "Gain", "Low", "Mid", "High", "Master", "Presence", "Resonance" };
+  // OD
+  //const std::vector<std::string> _param_names{ "Input", "Output", "Drive", "Level", "Tone"};
+  const std::vector<std::string> _param_names{};
 #endif
 };
