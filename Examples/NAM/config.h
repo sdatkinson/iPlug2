@@ -1,6 +1,6 @@
 #define PLUG_NAME "NAM Deluxe Reverb"
 #define BUNDLE_NAME "NAM Deluxe Reverb"
-#define PLUG_UNIQUE_ID 'NDRV'
+#define PLUG_UNIQUE_ID 'NDRD'
 
 #define PLUG_MFR "Steven Atkinson"
 #define PLUG_VERSION_HEX 0x00010000
@@ -25,8 +25,8 @@
 #define PLUG_DOES_MPE 0
 #define PLUG_DOES_STATE_CHUNKS 0
 #define PLUG_HAS_UI 1
-#define PLUG_WIDTH 600
-#define PLUG_HEIGHT 600
+#define PLUG_WIDTH 1000
+#define PLUG_HEIGHT 400
 #define PLUG_FPS 60
 #define PLUG_SHARED_RESOURCES 0
 #define PLUG_HOST_RESIZE 0

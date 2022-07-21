@@ -1,16 +1,16 @@
 #include <algorithm>  // std::max_element
 #include <cmath>  // pow, tanh
 #include <filesystem>
-// #include <format>
 #include <algorithm>
 #include <fstream>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
 #include "json.hpp"
 #include "numpy_util.h"
 #include "dsp.h"
-#include "HardCodedModel.h"
+#include "util.h"
 
 constexpr auto _INPUT_BUFFER_SAFETY_FACTOR = 32;
 
@@ -35,18 +35,20 @@ void DSP::process(
 }
 
 void DSP::finalize(const int num_frames)
-{ this->_stale_params = false; }
+{}
 
 void DSP::_get_params_(const std::unordered_map<std::string, double>& input_params)
 {
   this->_stale_params = false;
   for (auto it = input_params.begin(); it != input_params.end(); ++it)
   {
-    if (this->_params.find(it->first) == this->_params.end())  // Not contained
+    const std::string key = util::lowercase(it->first);
+    const double value = it->second;
+    if (this->_params.find(key) == this->_params.end())  // Not contained
       this->_stale_params = true;
-    else if (this->_params[it->first] != it->second)  // Contained but new value
+    else if (this->_params[key] != value)  // Contained but new value
       this->_stale_params = true;
-    this->_params[it->first] = it->second;
+    this->_params[key] = value;
   }
 }
 
@@ -459,7 +461,7 @@ void wavenet::WaveNet::_anti_pop_()
 {
   if (this->_anti_pop_countdown >= this->_anti_pop_ramp)
     return;
-  const float slope = 1.0 / float(this->_anti_pop_ramp);
+  const float slope = 1.0f / float(this->_anti_pop_ramp);
   for (int i = 0; i < this->_core_dsp_output.size(); i++)
   {
     if (this->_anti_pop_countdown >= this->_anti_pop_ramp)
@@ -473,60 +475,4 @@ void wavenet::WaveNet::_anti_pop_()
 void wavenet::WaveNet::_reset_anti_pop_()
 {
   this->_anti_pop_countdown = -this->_receptive_field;
-}
-
-//=============================================================================
-
-void verify_config_version(const std::string version)
-{
-  const std::unordered_set<std::string> supported_versions({"0.2.0", "0.2.1"});
-  if (supported_versions.find(version) == supported_versions.end())
-    throw std::exception("Unsupported config version");
-}
-
-std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
-{
-  const std::filesystem::path config_filename = dirname / std::filesystem::path("config.json");
-  if (!std::filesystem::exists(config_filename))
-    throw std::exception("Config JSON doesn't exist!\n");
-  std::ifstream i(config_filename);
-  nlohmann::json j;
-  i >> j;
-  verify_config_version(j["version"]);
-
-  auto architecture = j["architecture"];
-  nlohmann::json config = j["config"];
-
-  if (architecture == "Linear") {
-    const int receptive_field = config["receptive_field"];
-    const bool bias = config["bias"];
-    std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
-    return std::make_unique<Linear>(receptive_field, bias, params);
-  }
-  else if (architecture == "WaveNet") {
-    const int channels = config["channels"];
-    const bool batchnorm = config["batchnorm"];
-    std::vector<int> dilations;
-    for (int i = 0; i < config["dilations"].size(); i++)
-      dilations.push_back(config["dilations"][i]);
-    const std::string activation = config["activation"];
-    std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
-    return std::make_unique<wavenet::WaveNet>(channels, dilations, batchnorm, activation, params);
-  }
-  else {
-    throw std::exception("Unrecognized architecture");
-  }
-}
-
-std::unique_ptr<DSP> get_hard_dsp()
-{
-  // Values are defined in HardCodedModel.h
-  verify_config_version(std::string(PYTHON_MODEL_VERSION));
-  #ifndef ARCHITECTURE
-  const std::string ARCHITECTURE = "WaveNet";
-  #endif
-  if (ARCHITECTURE == "WaveNet")
-    return std::make_unique<wavenet::WaveNet>(CHANNELS, DILATIONS, BATCHNORM, ACTIVATION, PARAMS);
-  else
-    throw std::exception("Unrecognized architecture");
 }

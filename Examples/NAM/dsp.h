@@ -40,17 +40,20 @@ public:
   );
   // Anything to take care of before next buffer comes in.
   // For example:
-  // * Validate params as not stale
+  // * Move the buffer index forward
+  // * Does NOT say that params aren't stale; that's the job of the routine
+  //   that actually uses them, which varies depends on the particulars of the
+  //   DSP subclass implementation.
   virtual void finalize(const int num_frames);
 
 protected:
-  // Parameters
+  // Parameters (aka "knobs")
   std::unordered_map<std::string, double> _params;
   // If the params have changed since the last buffer was processed:
   bool _stale_params;
   // Where to store the samples after applying input gain
   std::vector<float> _input_post_gain;
-  // Output of the core DSP algorithm
+  // Location for the output of the core DSP algorithm.
   std::vector<float> _core_dsp_output;
 
   // Methods
@@ -251,11 +254,14 @@ namespace wavenet {
 };  // namespace wavenet
 
 // Utilities ==================================================================
+// Implemented in get_dsp.cpp
 
 // Verify that the config that we are building our model from is supported by
 // this plugin version.
 void verify_config_version(const std::string version);
 
+// Takes the directory, finds the required files, and uses them to instantiate
+// an instance of DSP.
 std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname);
 
 // Hard-coded model:

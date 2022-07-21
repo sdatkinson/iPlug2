@@ -11,17 +11,19 @@
 NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 : Plugin(info, MakeConfig(kNumParams, kNumPresets))
 {
-  this->_param_names.push_back("Input");
-  this->_param_names.push_back("Output");
-  // Other params...
+  // Input & output levels
   GetParam(kInputGain)->InitGain(this->_param_names[kInputGain].c_str(), 0.0, -20.0, 20.0, 0.1);
   GetParam(kOutputGain)->InitGain(this->_param_names[kOutputGain].c_str(), 0.0, -20.0, 20.0, 0.1);
+  // The other knobs
+  for (int i = 2; i<kNumParams; i++)
+    // FIXME use default values somehow
+    GetParam(i)->InitDouble(this->_param_names[i].c_str(), 0.5, 0.0, 1.0, 0.01);
   
 
 #if IPLUG_DSP
   try {
-    //this->dsp = get_dsp(std::filesystem::path("C:\\Program Files\\Common Files\\VST3\\NAM2 models\\DR-Proto"));
-    this->dsp = get_hard_dsp();
+     //this->dsp = get_dsp(std::filesystem::path("C:\\Path\\to\\your\\exported\\model\\directory"));
+     this->dsp = get_hard_dsp();
   }
   catch (std::exception& e) {
     std::cerr << "Failed to read DSP module" << std::endl;
@@ -39,7 +41,7 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
     pGraphics->AttachPanelBackground(COLOR_GRAY);
     pGraphics->LoadFont("Roboto-Regular", ROBOTO_FN);
     const IRECT b = pGraphics->GetBounds();
-    const char* name = "NAM (DR Clean)";
+    const char* name = "NAM (Deluxe Reverb)";
     pGraphics->AttachControl(new ITextControl(b.GetMidVPadded(50), name, IText(50)));
     // Knobs
     {
@@ -53,7 +55,12 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
         for (int i = 0; i < 2; i++)
         {
           const float h_shift = dx * float(i);
-          pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100.0).GetVShifted(y_above).GetHShifted(h_offset + h_shift), i));
+          pGraphics->AttachControl(
+            new IVKnobControl(
+              b.GetCentredInside(100.0).GetVShifted(y_above).GetHShifted(h_offset + h_shift),
+              i
+            )
+          );
         }
       }
 
@@ -63,8 +70,13 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
         const float h_offset = -float(0.5) * float(num_model_parameters - 1) * dx;
         for (int i = 2; i < kNumParams; i++)
         {
-          const float h_shift = dx * float(i);
-          pGraphics->AttachControl(new IVKnobControl(b.GetCentredInside(100.0).GetVShifted(y_below).GetHShifted(h_offset + h_shift), i));
+          const float h_shift = dx * float(i-2);
+          pGraphics->AttachControl(
+            new IVKnobControl(
+              b.GetCentredInside(100.0).GetVShifted(y_below).GetHShifted(h_offset + h_shift),
+              i
+            )
+          );
         }
       }
     }
