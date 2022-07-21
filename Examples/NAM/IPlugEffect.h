@@ -55,6 +55,6 @@ private:
   // const std::vector<std::string> _param_names{ "Input", "Output", "Gain", "Low", "Mid", "High", "Master", "Presence", "Resonance" };
   // OD
   //const std::vector<std::string> _param_names{ "Input", "Output", "Drive", "Level", "Tone"};
-  const std::vector<std::string> _param_names{};
+  const std::vector<std::string> _param_names{ "Input", "Output" };
 #endif
 };
