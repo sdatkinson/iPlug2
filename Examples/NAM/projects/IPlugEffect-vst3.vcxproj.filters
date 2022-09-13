@@ -368,7 +368,6 @@
     <ClInclude Include="..\activations.h" />
     <ClInclude Include="..\dsp.h" />
     <ClInclude Include="..\wavenet.h" />
-    <ClInclude Include="..\catnet.h" />
     <ClInclude Include="..\HardCodedModel.h" />
   </ItemGroup>
   <ItemGroup>

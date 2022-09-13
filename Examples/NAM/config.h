@@ -1,6 +1,6 @@
-#define PLUG_NAME "NAM DR"
-#define BUNDLE_NAME "NAM DR"
-#define PLUG_UNIQUE_ID 'NDR1'
+#define PLUG_NAME "NAM Deluxe Reverb"
+#define BUNDLE_NAME "NAM Deluxe Reverb"
+#define PLUG_UNIQUE_ID 'NDRD'
 
 #define PLUG_MFR "Steven Atkinson"
 #define PLUG_VERSION_HEX 0x00010000

@@ -336,7 +336,6 @@
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_ProcessorBase.h" />
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_View.h" />
     <ClInclude Include="..\activations.h" />
-    <ClInclude Include="..\catnet.h" />
     <ClInclude Include="..\cnpy.h" />
     <ClInclude Include="..\dsp.h" />
     <ClInclude Include="..\HardCodedModel.h" />
