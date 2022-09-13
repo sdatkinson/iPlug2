@@ -83,6 +83,7 @@
     <ClCompile Include="..\get_dsp.cpp" />
     <ClCompile Include="..\util.cpp" />
     <ClCompile Include="..\lstm.cpp" />
+    <ClCompile Include="..\wavenet.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\IPlugEffect.h" />
@@ -267,6 +268,8 @@
     <ClInclude Include="..\activations.h" />
     <ClInclude Include="..\util.h" />
     <ClInclude Include="..\lstm.h" />
+    <ClInclude Include="..\wavenet.h" />
+    <ClInclude Include="..\HardCodedModel.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resources">

@@ -140,6 +140,7 @@
     <ClCompile Include="..\lstm.cpp" />
     <ClCompile Include="..\util.cpp" />
     <ClCompile Include="..\get_dsp.cpp" />
+    <ClCompile Include="..\wavenet.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../config.h" />
@@ -366,6 +367,8 @@
     <ClInclude Include="..\util.h" />
     <ClInclude Include="..\activations.h" />
     <ClInclude Include="..\dsp.h" />
+    <ClInclude Include="..\wavenet.h" />
+    <ClInclude Include="..\HardCodedModel.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resources">

@@ -22,8 +22,8 @@ NeuralAmpModeler::NeuralAmpModeler(const InstanceInfo& info)
 
 #if IPLUG_DSP
   try {
-     //this->dsp = get_dsp(std::filesystem::path("C:\\Path\\to\\your\\exported\\model\\directory"));
-     this->dsp = get_hard_dsp();
+     //this->dsp = get_dsp(std::filesystem::path("C:\\path\\to\\your\\exported\\model"));
+     this->dsp = get_hard_dsp();  // See get_dsp.cpp, HardCodedModel.h
   }
   catch (std::exception& e) {
     std::cerr << "Failed to read DSP module" << std::endl;
@@ -98,7 +98,7 @@ void NeuralAmpModeler::ProcessBlock(sample** inputs, sample** outputs, int nFram
   const std::unordered_map<std::string, double> params = this->_get_params();
   if (this->dsp != nullptr) {
     this->dsp->process(inputs, outputs, nChans, nFrames, input_gain, output_gain, params);
-    this->dsp->finalize(nFrames);
+    this->dsp->finalize_(nFrames);
   }
   else
     this->ProcessFallback(inputs, outputs, nChans, nFrames);

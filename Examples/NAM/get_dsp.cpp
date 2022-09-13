@@ -4,13 +4,14 @@
 #include "dsp.h"
 #include "json.hpp"
 #include "lstm.h"
+#include "wavenet.h"
 #include "numpy_util.h"
 #include "HardCodedModel.h"
 
 
 void verify_config_version(const std::string version)
 {
-  const std::unordered_set<std::string> supported_versions({"0.2.0", "0.2.1"});
+  const std::unordered_set<std::string> supported_versions({"0.2.0", "0.2.1", "0.3.0", "0.3.1", "0.4.0"});
   if (supported_versions.find(version) == supported_versions.end())
     throw std::exception("Unsupported config version");
 }
@@ -31,11 +32,11 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
   if (architecture == "Linear")
   {
     const int receptive_field = config["receptive_field"];
-    const bool bias = config["bias"];
+    const bool _bias = config["bias"];
     std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
-    return std::make_unique<Linear>(receptive_field, bias, params);
+    return std::make_unique<Linear>(receptive_field, _bias, params);
   }
-  else if (architecture == "WaveNet")
+  else if (architecture == "ConvNet")
   {
     const int channels = config["channels"];
     const bool batchnorm = config["batchnorm"];
@@ -44,7 +45,7 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
       dilations.push_back(config["dilations"][i]);
     const std::string activation = config["activation"];
     std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
-    return std::make_unique<wavenet::WaveNet>(channels, dilations, batchnorm, activation, params);
+    return std::make_unique<convnet::ConvNet>(channels, dilations, batchnorm, activation, params);
   }
   else if (architecture == "CatLSTM")
   {
@@ -53,6 +54,39 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
     const int hidden_size = config["hidden_size"];
     std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
     return std::make_unique<lstm::LSTM>(num_layers, input_size, hidden_size, params, config["parametric"]);
+  }
+  else if (architecture == "WaveNet" || architecture == "CatWaveNet")
+  {
+    std::vector<wavenet::LayerArrayParams> layer_array_params;
+    for (int i = 0; i < config["layers"].size(); i++) {
+      nlohmann::json layer_config = config["layers"][i];
+      std::vector<int> dilations;
+      for (int j = 0; j < layer_config["dilations"].size(); j++)
+        dilations.push_back(layer_config["dilations"][j]);
+      layer_array_params.push_back(
+        wavenet::LayerArrayParams(
+          layer_config["input_size"],
+          layer_config["condition_size"],
+          layer_config["head_size"],
+          layer_config["channels"],
+          layer_config["kernel_size"],
+          dilations,
+          layer_config["activation"],
+          layer_config["gated"],
+          layer_config["head_bias"]
+        )
+      );
+    }
+    const bool with_head = config["head"] == NULL;
+    const float head_scale = config["head_scale"];
+    std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
+    return std::make_unique<wavenet::WaveNet>(
+      layer_array_params,
+      head_scale,
+      with_head,
+      architecture == "CatWaveNet" ? config["parametric"] : nlohmann::json{},
+      params
+    );
   }
   else
   {
@@ -64,11 +98,10 @@ std::unique_ptr<DSP> get_hard_dsp()
 {
   // Values are defined in HardCodedModel.h
   verify_config_version(std::string(PYTHON_MODEL_VERSION));
-#ifndef ARCHITECTURE
-  const std::string ARCHITECTURE = "WaveNet";
-#endif
-  if (ARCHITECTURE == "WaveNet")
-    return std::make_unique<wavenet::WaveNet>(CHANNELS, DILATIONS, BATCHNORM, ACTIVATION, PARAMS);
-  else
-    throw std::exception("Unrecognized architecture");
+
+  // Uncomment the line that corresponds to the model type that you're using.
+  
+  //return std::make_unique<convnet::ConvNet>(CHANNELS, DILATIONS, BATCHNORM, ACTIVATION, PARAMS);
+  //return std::make_unique<wavenet::WaveNet>(LAYER_ARRAY_PARAMS, HEAD_SCALE, WITH_HEAD, PARAMETRIC, PARAMS);
+  return std::make_unique<lstm::LSTM>(NUM_LAYERS, INPUT_SIZE, HIDDEN_SIZE, PARAMS, PARAMETRIC);
 }

@@ -11,6 +11,17 @@
 #include <Eigen/Dense>
 #include "IPlugConstants.h"
 
+enum EArchitectures
+{
+  kLinear = 0,
+  kConvNet,
+  kLSTM,
+  kCatLSTM,
+  kWaveNet,
+  kCatWaveNet,
+  kNumModels
+};
+
 // HACK
 using sample = double;
 
@@ -28,7 +39,15 @@ class DSP
 {
 public:
   DSP();
-  // Basic null DSP: copy the inputs to the outputs
+  // process() does all of the processing requried to take `inputs` array and
+  // fill in the required values on `outputs`.
+  // To do this:
+  // 1. The parameters from the plugin (I/O levels and any other parametric
+  //    inputs) are gotten.
+  // 2. The input level is applied
+  // 3. The core DSP algorithm is run (This is what should probably be
+  //    overridden in subclasses).
+  // 4. The output level is applied and the result stored to `output`.
   virtual void process(
     sample** inputs,
     sample** outputs,
@@ -44,7 +63,7 @@ public:
   // * Does NOT say that params aren't stale; that's the job of the routine
   //   that actually uses them, which varies depends on the particulars of the
   //   DSP subclass implementation.
-  virtual void finalize(const int num_frames);
+  virtual void finalize_(const int num_frames);
 
 protected:
   // Parameters (aka "knobs")
@@ -59,7 +78,8 @@ protected:
   // Methods
 
   // Copy the parameters to the DSP module.
-  // If anything has changed, then set this->_stale_params.
+  // If anything has changed, then set this->_stale_params to true.
+  // (TODO use "listener" approach)
   void _get_params_(const std::unordered_map<std::string, double>& input_params);
 
   // Apply the input gain
@@ -85,7 +105,7 @@ class Buffer : public DSP
 {
 public:
   Buffer(const int receptive_field);
-  void finalize(const int num_frames);
+  void finalize_(const int num_frames);
 protected:
   // Input buffer
   const int _input_buffer_channels = 1;  // Mono
@@ -107,48 +127,130 @@ protected:
 class Linear : public Buffer
 {
 public:
-  Linear(const int receptive_field, const bool bias, const std::vector<float> &params);
+  Linear(const int receptive_field, const bool _bias, const std::vector<float> &params);
   void _process_core_() override;
 protected:
-  Eigen::VectorXf weight;
-  float bias;
+  Eigen::VectorXf _weight;
+  float _bias;
 };
 
-// WaveNet ====================================================================
+// NN modules =================================================================
 
-#define WAVENET_KERNEL_SIZE 2
+// Activations
 
-namespace wavenet {
+// In-place ReLU on (N,M) array
+void relu_(
+  Eigen::MatrixXf& x,
+  const long i_start,
+  const long i_end,
+  const long j_start,
+  const long j_end
+);
+// Subset of the columns
+void relu_(
+  Eigen::MatrixXf& x,
+  const long j_start,
+  const long j_end
+);
+void relu_(Eigen::MatrixXf& x);
+
+// In-place sigmoid
+void sigmoid_(
+  Eigen::MatrixXf& x,
+  const long i_start,
+  const long i_end,
+  const long j_start,
+  const long j_end
+);
+void sigmoid_(Eigen::MatrixXf& x);
+
+// In-place Tanh on (N,M) array
+void tanh_(
+  Eigen::MatrixXf& x,
+  const long i_start,
+  const long i_end,
+  const long j_start,
+  const long j_end
+);
+// Subset of the columns
+void tanh_(
+  Eigen::MatrixXf& x,
+  const long i_start,
+  const long i_end
+);
+
+void tanh_(Eigen::MatrixXf& x);
+
+class Conv1D
+{
+public:
+  Conv1D() { this->_dilation = 1; };
+  void set_params_(std::vector<float>::iterator& params);
+  void set_size_(
+    const int in_channels,
+    const int out_channels,
+    const int kernel_size,
+    const bool do_bias,
+    const int _dilation
+  );
+  void set_size_and_params_(
+    const int in_channels,
+    const int out_channels,
+    const int kernel_size,
+    const int _dilation,
+    const bool do_bias,
+    std::vector<float>::iterator& params
+  );
+  //Process from input to output
+  // Rightmost indices of input go from i_start to i_end,
+  // Indices on output for from j_start (to j_start + i_end - i_start)
+  void process_(
+    const Eigen::MatrixXf& input,
+    Eigen::MatrixXf& output,
+    const long i_start,
+    const long i_end,
+    const long j_start
+  ) const;
+  long get_in_channels() const { return this->_weight.size() > 0 ? this->_weight[0].cols() : 0; };
+  long get_kernel_size() const { return this->_weight.size(); };
+  long get_num_params() const;
+  long get_out_channels() const {return this->_weight.size() > 0 ? this->_weight[0].rows() : 0;};
+  int get_dilation() const { return this->_dilation; };
+private:
+  // Gonna wing this...
+  // conv[kernel](cout, cin)
+  std::vector<Eigen::MatrixXf> _weight;
+  Eigen::VectorXf _bias;
+  int _dilation;
+};
+
+// Really just a linear layer
+class Conv1x1 {
+public:
+  Conv1x1(
+    const int in_channels,
+    const int out_channels,
+    const bool _bias
+  );
+  void set_params_(std::vector<float>::iterator& params);
+  // :param input: (N,Cin) or (Cin,)
+  // :return: (N,Cout) or (Cout,), respectively
+  Eigen::MatrixXf process(const Eigen::MatrixXf& input) const;
+
+  int get_out_channels() const { return this->_weight.rows(); };
+private:
+  Eigen::MatrixXf _weight;
+  Eigen::VectorXf _bias;
+  bool _do_bias;
+};
+
+// ConvNet ====================================================================
+
+namespace convnet {
   // Custom Conv that avoids re-computing on pieces of the input and trusts
   // that the corresponding outputs are where they need to be.
   // Beware: this is clever!
-  class Conv1D
-  {
-  public:
-    Conv1D() { this->dilation = 1; };
-    void set_params(
-      const int in_channels,
-      const int out_channels,
-      const int dilation,
-      const bool do_bias,
-      std::vector<float>::iterator& params
-    );
-    void process_(
-      const Eigen::MatrixXf &input,
-      Eigen::MatrixXf &output,
-      const long i_start,
-      const long i_end
-    ) const;
-    long get_num_params() const;
-    long get_out_channels() const;
-    int get_dilation() const { return this->dilation; };
-  private:
-    // Gonna wing this...
-    // conv[kernel](cout, cin)
-    std::vector<Eigen::MatrixXf> weight;
-    Eigen::VectorXf bias;
-    int dilation;
-  };
+  
 
   // Batch normalization
   // In prod mode, so really just an elementwise affine layer.
@@ -173,14 +275,14 @@ namespace wavenet {
     Eigen::VectorXf loc;
   };
 
-  class WaveNetBlock
+  class ConvNetBlock
   {
   public:
-    WaveNetBlock() { this->_batchnorm = false; };
-    void set_params(
+    ConvNetBlock() { this->_batchnorm = false; };
+    void set_params_(
       const int in_channels,
       const int out_channels,
-      const int dilation,
+      const int _dilation,
       const bool batchnorm,
       const std::string activation,
       std::vector<float>::iterator& params
@@ -197,15 +299,13 @@ namespace wavenet {
     BatchNorm batchnorm;
     bool _batchnorm;
     std::string activation;
-    void _tanh_(Eigen::MatrixXf &x, const long i_start, const long i_end) const;
-    void _relu_(Eigen::MatrixXf& x, const long i_start, const long i_end) const;
   };
 
-  class Head
+  class _Head
   {
   public:
-    Head() { this->bias = (float)0.0; };
-    Head(const int channels, std::vector<float>::iterator& params);
+    _Head() { this->_bias = (float)0.0; };
+    _Head(const int channels, std::vector<float>::iterator& params);
     void process_(
       const Eigen::MatrixXf &input,
       Eigen::VectorXf &output,
@@ -213,26 +313,25 @@ namespace wavenet {
       const long i_end
     ) const;
   private:
-    Eigen::VectorXf weight;
-    float bias;
+    Eigen::VectorXf _weight;
+    float _bias;
   };
 
-  class WaveNet : public Buffer
+  class ConvNet : public Buffer
   {
   public:
-    WaveNet(
+    ConvNet(
       const int channels,
       const std::vector<int>& dilations,
       const bool batchnorm,
       const std::string activation,
       std::vector<float> &params
     );
-    void _process_core_() override;
   protected:
-    std::vector<WaveNetBlock> _blocks;
+    std::vector<ConvNetBlock> _blocks;
     std::vector<Eigen::MatrixXf> _block_vals;
     Eigen::VectorXf _head_output;
-    Head _head;
+    _Head _head;
     void _verify_params(
       const int channels,
       const std::vector<int> &dilations,
@@ -241,6 +340,8 @@ namespace wavenet {
     );
     void _update_buffers_() override;
     void _rewind_buffers_() override;
+
+    void _process_core_() override;
 
     // The net starts with random parameters inside; we need to wait for a full
     // receptive field to pass through before we can count on the output being
@@ -251,7 +352,7 @@ namespace wavenet {
     void _anti_pop_();
     void _reset_anti_pop_();
   };
-};  // namespace wavenet
+};  // namespace convnet
 
 // Utilities ==================================================================
 // Implemented in get_dsp.cpp
