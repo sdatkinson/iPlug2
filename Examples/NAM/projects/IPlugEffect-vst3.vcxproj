@@ -336,13 +336,16 @@
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_ProcessorBase.h" />
     <ClInclude Include="..\..\..\IPlug\VST3\IPlugVST3_View.h" />
     <ClInclude Include="..\activations.h" />
+    <ClInclude Include="..\catnet.h" />
     <ClInclude Include="..\cnpy.h" />
     <ClInclude Include="..\dsp.h" />
+    <ClInclude Include="..\HardCodedModel.h" />
     <ClInclude Include="..\IPlugEffect.h" />
     <ClInclude Include="..\lstm.h" />
     <ClInclude Include="..\numpy_util.h" />
     <ClInclude Include="..\resources\resource.h" />
     <ClInclude Include="..\util.h" />
+    <ClInclude Include="..\wavenet.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Dependencies\IPlug\VST3_SDK\base\source\baseiids.cpp" />
@@ -410,6 +413,7 @@
     <ClCompile Include="..\lstm.cpp" />
     <ClCompile Include="..\numpy_util.cpp" />
     <ClCompile Include="..\util.cpp" />
+    <ClCompile Include="..\wavenet.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\main.rc" />
