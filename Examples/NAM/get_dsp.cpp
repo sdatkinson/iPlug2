@@ -88,6 +88,8 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
     const bool with_head = config["head"] == NULL;
     const float head_scale = config["head_scale"];
     std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
+    // Solves compilation issue on macOS Error: No matching constructor for initialization of 'wavenet::WaveNet'
+    // Solution from https://stackoverflow.com/a/73956681/3768284
     auto parametric_json = architecture == "CatWaveNet" ? config["parametric"] : nlohmann::json{};
     return std::make_unique<wavenet::WaveNet>(
       layer_array_params,
