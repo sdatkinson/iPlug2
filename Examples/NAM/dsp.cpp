@@ -165,7 +165,7 @@ Linear::Linear(
 ) : Buffer(receptive_field)
 {
   if (params.size() != (receptive_field + (_bias ? 1 : 0)))
-    throw std::exception("Params vector does not match expected size based on architecture parameters");
+    throw std::runtime_error("Params vector does not match expected size based on architecture parameters");
 
   this->_weight.resize(this->_receptive_field);
   // Pass in in reverse order so that dot products work out of the box.
