@@ -47,6 +47,14 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
     std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
     return std::make_unique<convnet::ConvNet>(channels, dilations, batchnorm, activation, params);
   }
+  else if (architecture == "LSTM")
+  {
+    const int num_layers = config["num_layers"];
+    const int input_size = config["input_size"];
+    const int hidden_size = config["hidden_size"];
+    std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
+    return std::make_unique<lstm::LSTM>(num_layers, input_size, hidden_size, params, nlohmann::json {});
+  }
   else if (architecture == "CatLSTM")
   {
     const int num_layers = config["num_layers"];
@@ -80,11 +88,12 @@ std::unique_ptr<DSP> get_dsp(const std::filesystem::path dirname)
     const bool with_head = config["head"] == NULL;
     const float head_scale = config["head_scale"];
     std::vector<float> params = numpy_util::load_to_vector(dirname / std::filesystem::path("weights.npy"));
+    auto parametric_json = architecture == "CatWaveNet" ? config["parametric"] : nlohmann::json{};
     return std::make_unique<wavenet::WaveNet>(
       layer_array_params,
       head_scale,
       with_head,
-      architecture == "CatWaveNet" ? config["parametric"] : nlohmann::json{},
+      parametric_json,
       params
     );
   }
