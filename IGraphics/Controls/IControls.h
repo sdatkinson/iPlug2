@@ -67,6 +67,33 @@ public:
   void OnResize() override;
 };
 
+/** A meta control that has a single IVButtonControl child. It allows an animated button to trigger
+ *  parameter changes, which otherwise wouldn't work
+ *  After the animation function has ended PromptUserInput() is called on the (invisible) parent control
+ *  which is the one linked to the parameter
+ */
+class IVAnimationButtonControl : public IContainerBase
+                               , public IVectorBase
+{
+public:
+  /** Constructs a vector button control
+   * @param bounds The control's bounds
+   * @param paramIdx The parameter index to link this control to
+   * @param label The label for the vector control, leave empty for no label
+   * @param style The styling of this vector control \see IVStyle
+   * @param shape The shape of the button
+   * @param aF The animation triggering actionFunc that is passed to the IVButtonControl */
+  IVAnimationButtonControl(const IRECT& bounds, int paramIdx, const char* label = "", const IVStyle& style = DEFAULT_STYLE, EVShape shape = EVShape::Rectangle, IActionFunction aF = SplashClickActionFunc);
+  
+  void OnPopupMenuSelection(IPopupMenu* pSelectedMenu, int valIdx) override;
+  void SetValueFromUserInput(double value, int valIdx = 0) override;
+  void SetValueFromDelegate(double value, int valIdx = 0) override;
+  void SetStyle(const IVStyle& style) override;
+
+private:
+  IVButtonControl* mButtonControl = nullptr;
+};
+
 /** A vector switch control. Click to cycle through states. */
 class IVSwitchControl : public ISwitchControlBase
                       , public IVectorBase

@@ -1151,9 +1151,9 @@ public:
   {
     IRECT clickableArea = parent;
     
-    if(!mLabelInWidget)
+    if (!mLabelInWidget)
     {
-      if(mStyle.showLabel && CStringHasContents(mLabelStr.Get()))
+      if (mStyle.showLabel && CStringHasContents(mLabelStr.Get()))
       {
         IRECT textRect;
         mControl->GetUI()->MeasureText(mStyle.labelText, mLabelStr.Get(), textRect);
@@ -1163,7 +1163,7 @@ public:
       else
         mLabelBounds = IRECT();
       
-      if(mLabelBounds.H())
+      if (mLabelBounds.H())
         clickableArea = parent.GetReducedFromTop(mLabelBounds.H());
     }
     
@@ -1171,7 +1171,7 @@ public:
     {
       IRECT textRect;
       
-      if(CStringHasContents(mValueStr.Get()))
+      if (CStringHasContents(mValueStr.Get()))
         mControl->GetUI()->MeasureText(mStyle.valueText, mValueStr.Get(), textRect);
 
       const float valueDisplayWidth = textRect.W() * mValueDisplayFrac;
@@ -1201,13 +1201,13 @@ public:
       mWidgetBounds = clickableArea.GetScaledAboutCentre(mStyle.widgetFrac);
     }
     
-    if(hasHandle)
+    if (hasHandle)
       mWidgetBounds = GetAdjustedHandleBounds(clickableArea).GetScaledAboutCentre(mStyle.widgetFrac);
     
-    if(mLabelInWidget)
+    if (mLabelInWidget)
       mLabelBounds = mWidgetBounds;
     
-    if(mValueInWidget)
+    if (mValueInWidget)
       mValueBounds = mWidgetBounds;
     
     return clickableArea;

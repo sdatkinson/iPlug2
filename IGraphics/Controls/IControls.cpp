@@ -85,6 +85,66 @@ bool IVButtonControl::IsHit(float x, float y) const
   return mWidgetBounds.Contains(x, y);
 }
 
+IVAnimationButtonControl::IVAnimationButtonControl(const IRECT& bounds, int paramIdx, const char* label, const IVStyle& style, EVShape shape, IActionFunction aF)
+: IContainerBase(bounds, paramIdx)
+, IVectorBase(style)
+{
+  AttachIControl(this, "");
+  
+  mDisablePrompt = false;
+  
+  SetAttachFunc([&, label, style, shape](IContainerBase* pContainer, const IRECT& bounds) {
+    AddChildControl(mButtonControl = new IVButtonControl(bounds, aF, label, style.WithValueText(style.valueText.WithVAlign(EVAlign::Middle)), false, true, shape), kNoTag, GetGroup());
+    
+    WDL_String str;
+    GetParam()->GetDisplay(str);
+    mButtonControl->SetValueStr(str.Get());
+    
+    mButtonControl->SetAnimationEndActionFunction([&](IControl* pCaller){
+      PromptUserInput(mButtonControl->GetValueBounds());
+    });
+  });
+  
+  SetResizeFunc([&](IContainerBase* pContainer, const IRECT& bounds) {
+    mButtonControl->SetTargetAndDrawRECTs(bounds);
+  });
+}
+
+void IVAnimationButtonControl::SetStyle(const IVStyle& style)
+{
+  IVectorBase::SetStyle(style);
+  mButtonControl->SetStyle(style.WithValueText(style.valueText.WithVAlign(EVAlign::Middle)));
+}
+
+void IVAnimationButtonControl::SetValueFromDelegate(double value, int valIdx)
+{
+  IContainerBase::SetValueFromDelegate(value, valIdx);
+  WDL_String str;
+  GetParam()->GetDisplay(str);
+  mButtonControl->SetValueStr(str.Get());
+}
+
+void IVAnimationButtonControl::SetValueFromUserInput(double value, int valIdx)
+{
+  IControl::SetValueFromUserInput(value, valIdx);
+
+  if (GetParam())
+  {
+    WDL_String displayString;
+    GetParam()->GetDisplay(displayString);
+    mButtonControl->SetValueStr(displayString.Get());
+  }
+}
+
+void IVAnimationButtonControl::OnPopupMenuSelection(IPopupMenu* pSelectedMenu, int valIdx)
+{
+  if (pSelectedMenu)
+  {
+    mButtonControl->SetValueStr(pSelectedMenu->GetChosenItem()->GetText());
+  }
+  IControl::OnPopupMenuSelection(pSelectedMenu, valIdx);
+}
+
 IVSwitchControl::IVSwitchControl(const IRECT& bounds, int paramIdx, const char* label, const IVStyle& style, bool valueInButton)
 : ISwitchControlBase(bounds, paramIdx, SplashClickActionFunc)
 , IVectorBase(style, false, valueInButton)
