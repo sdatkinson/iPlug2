@@ -92,6 +92,9 @@ enum class EAlign { Near, Center, Far };
 /** \todo */
 enum class EVAlign { Top, Middle, Bottom };
 
+/** \todo */
+enum class EOrientation { North, East, South, West };
+
 /** CStrings for EAlign options  */
 static const char* kEAlignStrs[3] = { "Near", "Center", "Far" };
 
