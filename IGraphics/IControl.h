@@ -1927,10 +1927,10 @@ public:
   void CheckSelectedItem();
 
 private:
-  void ScanDirectory(const char* path, IPopupMenu& menuToAddTo);
   void CollectSortedItems(IPopupMenu* pMenu);
   
 protected:
+  virtual void ScanDirectory(const char* path, IPopupMenu& menuToAddTo);
   bool mShowEmptySubmenus = false;
   bool mShowFileExtensions = true;
   int mSelectedIndex = -1;
