@@ -1928,9 +1928,9 @@ public:
 
 private:
   void CollectSortedItems(IPopupMenu* pMenu);
+  void ScanDirectory(const char* path, IPopupMenu& menuToAddTo);
   
 protected:
-  virtual void ScanDirectory(const char* path, IPopupMenu& menuToAddTo);
   bool mShowEmptySubmenus = false;
   bool mShowFileExtensions = true;
   int mSelectedIndex = -1;

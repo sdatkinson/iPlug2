@@ -1130,11 +1130,15 @@ void IDirBrowseControlBase::ScanDirectory(const char* path, IPopupMenu& menuToAd
       {
         if (d.GetCurrentIsDirectory())
         {
-          WDL_String subdir;
-          d.GetCurrentFullFN(&subdir);
-          IPopupMenu* pNewMenu = new IPopupMenu();
-          menuToAddTo.AddItem(d.GetCurrentFN(), pNewMenu, -2);
-          ScanDirectory(subdir.Get(), *pNewMenu);
+          // HACK for NAM: don't recurse
+          // Tried to make this virtual and override in NAM's code, but dirscan isn't compiling the way I expected.
+          // Issue with strnicmp?
+          
+          // WDL_String subdir;
+          // d.GetCurrentFullFN(&subdir);
+          // IPopupMenu* pNewMenu = new IPopupMenu();
+          // menuToAddTo.AddItem(d.GetCurrentFN(), pNewMenu, -2);
+          // ScanDirectory(subdir.Get(), *pNewMenu);
         }
         else
         {
