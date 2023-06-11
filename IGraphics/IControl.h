@@ -1927,8 +1927,8 @@ public:
   void CheckSelectedItem();
 
 private:
-  void CollectSortedItems(IPopupMenu* pMenu);
   void ScanDirectory(const char* path, IPopupMenu& menuToAddTo);
+  void CollectSortedItems(IPopupMenu* pMenu);
   
 protected:
   bool mShowEmptySubmenus = false;
