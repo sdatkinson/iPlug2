@@ -70,11 +70,21 @@ template<typename T = double, int NCHANS=2>
 class LanczosResampler
 {
 private:
+  // The Lanczos filter size.
+  // A higher value makes the fitler closer to an ideal stop-band that rejects
+  // high-frequency content (anti-aliasing), but at the expense of higher latency.
   static constexpr size_t A = 4;
+  // The buffer size. This needs to be at least as large as the largest block of samples
+  // that the input side will see.
   static constexpr size_t kBufferSize = 4096;
+  // The filter width. 2x because the filter goes from -A to A (part of the mathematical
+  // definition; don't touch this).
   static constexpr size_t kFilterWidth = A * 2;
+  // The discretization resolution for the filter table.
+  // We precompute the filter and use that in the RT calculations; higher here should
+  // give better accuracy.
   static constexpr size_t kTableObs = 8192;
-  static constexpr double kDeltaX = 1.0 / (kTableObs);
+  static constexpr double kDeltaX = 1.0 / (kTableObs);  // (Math identity; don't touch.)
 
 public:
   LanczosResampler(float inputRate, float outputRate)
@@ -203,8 +213,8 @@ private:
 
     f0 = _mm_add_ps(f0, _mm_mul_ps(df0, fl));
 
-    auto f1 = _mm_load_ps(&sTable[tidx][4]);
-    auto df1 = _mm_load_ps(&sDeltaTable[tidx][4]);
+    auto f1 = _mm_load_ps(&sTable[tidx][A]);
+    auto df1 = _mm_load_ps(&sDeltaTable[tidx][A]);
     f1 = _mm_add_ps(f1, _mm_mul_ps(df1, fl));
 
     for (auto c=0; c<NCHANS;c++)
@@ -216,15 +226,15 @@ private:
     }
 #else
     
-    for (auto i=0; i<4; i++)
+    for (auto i=0; i<A; i++)
     {
       const auto fl = fidx;
       auto f0 = sTable[tidx][i];
       const auto df0 = sDeltaTable[tidx][i];
       f0 += df0 * fl;
       
-      auto f1 = sTable[tidx][4+i];
-      const auto df1 = sDeltaTable[tidx][4+i];
+      auto f1 = sTable[tidx][A+i];
+      const auto df1 = sDeltaTable[tidx][A+i];
       f1 += df1 * fl;
       
       for (auto c=0; c<NCHANS;c++)
