@@ -73,7 +73,7 @@ private:
   // The Lanczos filter size.
   // A higher value makes the fitler closer to an ideal stop-band that rejects
   // high-frequency content (anti-aliasing), but at the expense of higher latency.
-  static constexpr size_t A = 4;
+  static constexpr size_t A = 12;
   // The buffer size. This needs to be at least as large as the largest block of samples
   // that the input side will see.
   static constexpr size_t kBufferSize = 4096;
