@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <functional>
 #include <cmath>
 
@@ -86,7 +87,7 @@ public:
     mInputSampleRate = inputSampleRate;
     mUpRatio = mInputSampleRate / mRenderingSampleRate;
     mDownRatio = mRenderingSampleRate / mInputSampleRate;
-    mResampledData.Resize(mMaxBlockSize * NCHANS);
+    mResampledData.Resize(mMaxBlockSize * NCHANS);  // Doesn't matter that this may contain junk.
     mScratchPtrs.Empty();
     
     for (auto chan=0; chan<NCHANS; chan++)
@@ -96,21 +97,36 @@ public:
 
     if (mResamplingMode == ESRCMode::kLancsoz)
     {
+      // This doesn't work for more than 1 channel.
       mResamplerUp = std::make_unique<LanczosResampler>(mInputSampleRate, mRenderingSampleRate);
       mResamplerDown = std::make_unique<LanczosResampler>(mRenderingSampleRate, mInputSampleRate);
+      
+      // Need clean inputs because we're going to get going with them!
+      ClearBuffers();
         
       /* Prepopulate the upsampler with silence so it can run ahead */
-      mLatency = int(mResamplerUp->GetNumSamplesRequiredFor(1) * 2);
+      // Needs to be end-to-end!
+      const auto midSamples = mResamplerDown->GetNumSamplesRequiredFor(1);
+      mLatency = int(mResamplerUp->GetNumSamplesRequiredFor(midSamples));
+      // Push some silence and process it so the *down* resampler is ready!
       mResamplerUp->PushBlock(mScratchPtrs.GetList(), mLatency);
+      const size_t populated = mResamplerUp->PopBlock(mScratchPtrs.GetList(), midSamples);
+      if (populated < midSamples) {
+        throw std::runtime_error("Didn't get enough samples required for pre-population!");
+      }
+      // FIXME we should be using func() here, but we don't have it...
+      // func(mScratchPtrs.GetList(), mScratchPtrs.GetList(), (int)midSamples);
+      mResamplerDown->PushBlock(mScratchPtrs.GetList(), midSamples);
+      // Now we're ready!
     }
     else
     {
       mResamplerUp = nullptr;
       mResamplerDown = nullptr;
       mLatency = 0;
+      ClearBuffers();  // Takes care of that junk
     }
-    
-    ClearBuffers();
+    totalFramesProcessed=0;
   }
 
   /** Resample an input block with a per-block function (up sample input -> process with function -> down sample)
@@ -120,7 +136,8 @@ public:
    * @param func The function that processes the audio sample at the higher sampling rate. NOTE: std::function can call malloc if you pass in captures */
   void ProcessBlock(T** inputs, T** outputs, int nFrames, BlockProcessFunc func)
   {
-    switch (mResamplingMode) 
+    totalFramesProcessed += nFrames;
+    switch (mResamplingMode)
     {
       case ESRCMode::kLinearInterpolation:
       {
@@ -138,19 +155,40 @@ public:
       }
       case ESRCMode::kLancsoz:
       {
+        // Push into the up-resampler. This will give it what it needs to pop `outputLen` samples, and
+        // `GetNumSamplesRequriedFor(outputLen)` will be zero, meaning that that it has what it needs.
         mResamplerUp->PushBlock(inputs, nFrames);
         
-        const auto outputLen = static_cast<int>(std::ceil(static_cast<double>(nFrames) / mUpRatio));
+        // This is the most samples you might get. Sometimes you'll get fewer.
+        const auto maxOutputLen = static_cast<int>(std::ceil(static_cast<double>(nFrames) / mUpRatio));
+        size_t populatedUp = 0;
 
-        while (mResamplerUp->GetNumSamplesRequiredFor(outputLen) == 0)
+        // Why _is_ is a while-loop? If we _don't_ execute the following code only once, then are things
+        // executing correctly?
+        //
+        // Since the new buffer has been pushed into the up-resampler, it should have what's needed (needs zero more
+        // samples) and this while will enter.
+        while (mResamplerUp->GetNumSamplesRequiredFor(1) == 0)
         {
-          mResamplerUp->PopBlock(mScratchPtrs.GetList(), outputLen);
-          func(mScratchPtrs.GetList(), mScratchPtrs.GetList(), outputLen);
-          
-          mResamplerDown->PushBlock(mScratchPtrs.GetList(), outputLen);
+          // This will deplete the up-resampler and it will need more samples to do more, so the while loop should
+          // exit.
+          populatedUp += mResamplerUp->PopBlock(mScratchPtrs.GetList(), maxOutputLen);
+          if (populatedUp > maxOutputLen) {
+            throw std::runtime_error("Got too many samples!");
+          }
+          func(mScratchPtrs.GetList(), mScratchPtrs.GetList(), (int)populatedUp);
+          // This *should* give the down-resampler what it needs to pop the required output `nFrames` output buffer.
+          mResamplerDown->PushBlock(mScratchPtrs.GetList(), populatedUp);
         }
         
-        mResamplerDown->PopBlock(outputs, nFrames);
+        // Should there be a while loop here to pop as much as is needed? We want to keep a *little* wiggle room in
+        // the down-resampler so that we never don't have *enough* to fill `outputs`.
+        // Maybe a ring buffer?
+        const auto populatedDown = mResamplerDown->PopBlock(outputs, nFrames);
+        if (populatedDown < nFrames) {
+          std::cerr << "Needed " << nFrames << "frames, but only popped " << populatedDown << "!" << std::endl;
+        }
+        // Is it valid to renormalize phases here?
         mResamplerUp->RenormalizePhases();
         mResamplerDown->RenormalizePhases();
         break;
@@ -232,8 +270,12 @@ private:
     
     if (mResamplingMode == ESRCMode::kLancsoz)
     {
-      mResamplerUp->ClearBuffer();
-      mResamplerDown->ClearBuffer();
+      if (mResamplerUp != nullptr) {
+        mResamplerUp->ClearBuffer();
+      }
+      if (mResamplerDown != nullptr) {
+        mResamplerDown->ClearBuffer();
+      }
     }
   }
 
@@ -245,6 +287,7 @@ private:
   int mLatency = 0;
   const double mRenderingSampleRate;
   ESRCMode mResamplingMode;
+  long totalFramesProcessed=0;
   
   std::unique_ptr<LanczosResampler> mResamplerUp, mResamplerDown;
 };
