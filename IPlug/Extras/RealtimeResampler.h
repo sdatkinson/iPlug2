@@ -133,7 +133,7 @@ public:
       // a non-silent input is given to it.
       // Therefore, we don't *acutally* need to use `func()`--we can assume that it would output silence!
       // func(mEncapsulatedInputPointers.GetList(), mEncapsulatedOutputPointers.GetList(), (int)populated);
-      FallbackFunc(mEncapsulatedInputPointers.GetList(), mEncapsulatedOutputPointers.GetList(), populated);
+      FallbackFunc(mEncapsulatedInputPointers.GetList(), mEncapsulatedOutputPointers.GetList(), (int)populated);
       mResampler2->PushBlock(mEncapsulatedOutputPointers.GetList(), populated);
       // Now we're ready for the first "real" buffer.
     }
