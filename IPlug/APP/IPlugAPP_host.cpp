@@ -10,6 +10,8 @@
 
 #include "IPlugAPP_host.h"
 
+#include <algorithm>
+
 #ifdef OS_WIN
 #include <sys/stat.h>
 #endif
@@ -23,6 +25,18 @@ using namespace iplug;
 #endif
 
 #define STRBUFSZ 100
+
+namespace
+{
+uint32_t ClampFirstChannel(uint32_t firstChannel, uint32_t availableChannels, uint32_t streamChannels)
+{
+  if (availableChannels == 0 || streamChannels == 0)
+    return 0;
+
+  const uint32_t maxFirstChannel = availableChannels > streamChannels ? availableChannels - streamChannels + 1 : 1;
+  return std::min(std::max(firstChannel, uint32_t(1)), maxFirstChannel);
+}
+}
 
 std::unique_ptr<IPlugAPPHost> IPlugAPPHost::sInstance;
 UINT gSCROLLMSG;
@@ -578,13 +592,28 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
   CloseAudio();
 
   RtAudio::StreamParameters iParams, oParams;
+  RtAudio::DeviceInfo inputInfo = mDAC->getDeviceInfo(inId);
+  RtAudio::DeviceInfo outputInfo = mDAC->getDeviceInfo(outId);
+
   iParams.deviceId = inId;
-  iParams.nChannels = GetPlug()->MaxNChannels(ERoute::kInput); // TODO: flexible channel count
-  iParams.firstChannel = 0; // TODO: flexible channel count
+  iParams.nChannels = GetPlug()->MaxNChannels(ERoute::kInput);
+  if (iParams.nChannels > 0)
+  {
+    mState.mAudioInChanL = ClampFirstChannel(mState.mAudioInChanL, inputInfo.inputChannels, iParams.nChannels);
+    mState.mAudioInChanR =
+      iParams.nChannels > 1 ? std::min(mState.mAudioInChanL + 1, inputInfo.inputChannels) : mState.mAudioInChanL;
+    iParams.firstChannel = mState.mAudioInChanL - 1;
+  }
 
   oParams.deviceId = outId;
-  oParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput); // TODO: flexible channel count
-  oParams.firstChannel = 0; // TODO: flexible channel count
+  oParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput);
+  if (oParams.nChannels > 0)
+  {
+    mState.mAudioOutChanL = ClampFirstChannel(mState.mAudioOutChanL, outputInfo.outputChannels, oParams.nChannels);
+    mState.mAudioOutChanR =
+      oParams.nChannels > 1 ? std::min(mState.mAudioOutChanL + 1, outputInfo.outputChannels) : mState.mAudioOutChanL;
+    oParams.firstChannel = mState.mAudioOutChanL - 1;
+  }
 
   mBufferSize = iovs; // mBufferSize may get changed by stream
 
@@ -783,4 +812,3 @@ void IPlugAPPHost::ErrorCallback(RtAudioError::Type type, const std::string &err
 {
   //TODO:
 }
-
