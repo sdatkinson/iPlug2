@@ -120,7 +120,8 @@ bool IPlugAPPHost::InitState()
     {
       DBGMSG("Reading ini file from %s\n", mINIPath.Get());
       
-      mState.mAudioDriverType = GetPrivateProfileInt("audio", "driver", 0, mINIPath.Get());
+      mState.mAudioDriverType =
+        GetPrivateProfileInt("audio", "driver", APP_DEFAULT_AUDIO_DRIVER, mINIPath.Get());
 
       GetPrivateProfileString("audio", "indev", "Built-in Input", buf, STRBUFSZ, mINIPath.Get()); mState.mAudioInDev.Set(buf);
       GetPrivateProfileString("audio", "outdev", "Built-in Output", buf, STRBUFSZ, mINIPath.Get()); mState.mAudioOutDev.Set(buf);

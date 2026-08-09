@@ -64,6 +64,10 @@
 
 #define OFF_TEXT "off"
 
+#ifndef APP_DEFAULT_AUDIO_DRIVER
+  #define APP_DEFAULT_AUDIO_DRIVER 0
+#endif
+
 extern HWND gHWND;
 extern HINSTANCE gHINSTANCE;
 
@@ -105,7 +109,7 @@ public:
     , mAudioOutDev(DEFAULT_OUTPUT_DEV)
     , mMidiInDev(OFF_TEXT)
     , mMidiOutDev(OFF_TEXT)
-    , mAudioDriverType(0) // DirectSound / CoreAudio by default
+    , mAudioDriverType(APP_DEFAULT_AUDIO_DRIVER) // DirectSound / CoreAudio by default, unless overridden by the app
     , mBufferSize(512)
     , mAudioSR(44100)
     , mMidiInChan(0)
