@@ -73,6 +73,11 @@ const int kNumBufferSizeOptions = 11;
 const std::string kBufferSizeOptions[kNumBufferSizeOptions] = {"32", "64", "96", "128", "192", "256", "512", "1024", "2048", "4096", "8192" };
 const int kDeviceDS = 0; const int kDeviceCoreAudio = 0; const int kDeviceAlsa = 0;
 const int kDeviceASIO = 1; const int kDeviceJack = 1;
+
+#ifndef APP_DEFAULT_AUDIO_DRIVER
+  #define APP_DEFAULT_AUDIO_DRIVER 0
+#endif
+
 extern UINT gSCROLLMSG;
 
 class IPlugAPP;
@@ -105,7 +110,7 @@ public:
     , mAudioOutDev(DEFAULT_OUTPUT_DEV)
     , mMidiInDev(OFF_TEXT)
     , mMidiOutDev(OFF_TEXT)
-    , mAudioDriverType(0) // DirectSound / CoreAudio by default
+    , mAudioDriverType(APP_DEFAULT_AUDIO_DRIVER)
     , mBufferSize(512)
     , mAudioSR(44100)
     , mMidiInChan(0)
