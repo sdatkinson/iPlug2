@@ -225,7 +225,79 @@ int IPlugAPPHost::GetAudioDeviceIdx(const char* deviceNameToTest) const
     if(!strcmp(deviceNameToTest, mAudioIDDevNames.at(i).c_str() ))
       return i;
   }
+
+  return -1;
+}
+
+int IPlugAPPHost::GetAudioDeviceIdx(const char* deviceNameToTest, ERoute direction) const
+{
+  const auto& devices = direction == ERoute::kInput ? mAudioInputDevs : mAudioOutputDevs;
+
+  for (const auto deviceIdx : devices)
+  {
+    if (deviceIdx < mAudioIDDevNames.size() && AudioDeviceSupportsRoute(deviceIdx, direction)
+        && !strcmp(deviceNameToTest, mAudioIDDevNames.at(deviceIdx).c_str()))
+      return deviceIdx;
+  }
   
+  return -1;
+}
+
+bool IPlugAPPHost::AudioDeviceSupportsRoute(int idx, ERoute direction) const
+{
+  if (idx < 0)
+    return false;
+
+  const auto& devices = direction == ERoute::kInput ? mAudioInputDevs : mAudioOutputDevs;
+  if (std::find(devices.begin(), devices.end(), static_cast<uint32_t>(idx)) == devices.end())
+    return false;
+
+  try
+  {
+    const RtAudio::DeviceInfo info = mDAC->getDeviceInfo(idx);
+    const uint32_t requiredChannels = static_cast<uint32_t>(std::max(0, mIPlug->MaxNChannels(direction)));
+    const uint32_t availableChannels =
+      direction == ERoute::kInput ? info.inputChannels : info.outputChannels;
+    return info.probed && availableChannels >= requiredChannels;
+  }
+  catch (RtAudioError&)
+  {
+    return false;
+  }
+}
+
+int IPlugAPPHost::GetFallbackAudioDevice(ERoute direction) const
+{
+  const int defaultDevice = direction == ERoute::kInput ? mDefaultInputDev : mDefaultOutputDev;
+  if (AudioDeviceSupportsRoute(defaultDevice, direction))
+    return defaultDevice;
+
+  const auto& devices = direction == ERoute::kInput ? mAudioInputDevs : mAudioOutputDevs;
+  for (const auto deviceIdx : devices)
+  {
+    if (AudioDeviceSupportsRoute(deviceIdx, direction))
+      return deviceIdx;
+  }
+
+  return -1;
+}
+
+int IPlugAPPHost::GetFallbackDuplexAudioDevice() const
+{
+  if (AudioDeviceSupportsRoute(mDefaultOutputDev, ERoute::kInput)
+      && AudioDeviceSupportsRoute(mDefaultOutputDev, ERoute::kOutput))
+    return mDefaultOutputDev;
+
+  if (AudioDeviceSupportsRoute(mDefaultInputDev, ERoute::kInput)
+      && AudioDeviceSupportsRoute(mDefaultInputDev, ERoute::kOutput))
+    return mDefaultInputDev;
+
+  for (const auto deviceIdx : mAudioOutputDevs)
+  {
+    if (AudioDeviceSupportsRoute(deviceIdx, ERoute::kInput))
+      return deviceIdx;
+  }
+
   return -1;
 }
 
@@ -276,6 +348,8 @@ void IPlugAPPHost::ProbeAudioIO()
   mAudioInputDevs.clear();
   mAudioOutputDevs.clear();
   mAudioIDDevNames.clear();
+  mDefaultInputDev = -1;
+  mDefaultOutputDev = -1;
 
   uint32_t nDevices = mDAC->getDeviceCount();
 
@@ -409,67 +483,85 @@ bool IPlugAPPHost::TryToChangeAudio()
 {
   int inputID = -1;
   int outputID = -1;
+  bool stateChanged = false;
+  bool requiresDuplexDevice = false;
 
 #if defined OS_WIN
   if(mState.mAudioDriverType == kDeviceASIO)
-    inputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get());
+  {
+    requiresDuplexDevice = true;
+    outputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get(), ERoute::kOutput);
+    if (AudioDeviceSupportsRoute(outputID, ERoute::kInput))
+    {
+      inputID = outputID;
+
+      const std::string deviceName = GetAudioDeviceName(outputID);
+      if (strcmp(mState.mAudioInDev.Get(), deviceName.c_str()))
+      {
+        mState.mAudioInDev.Set(deviceName.c_str());
+        stateChanged = true;
+      }
+    }
+    else
+    {
+      inputID = outputID = GetFallbackDuplexAudioDevice();
+      if (inputID != -1)
+      {
+        const std::string deviceName = GetAudioDeviceName(inputID);
+        mState.mAudioInDev.Set(deviceName.c_str());
+        mState.mAudioOutDev.Set(deviceName.c_str());
+        stateChanged = true;
+      }
+    }
+  }
   else
-    inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
+  {
+    inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get(), ERoute::kInput);
+    outputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get(), ERoute::kOutput);
+  }
 #elif defined OS_MAC
-  inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
+  inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get(), ERoute::kInput);
+  outputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get(), ERoute::kOutput);
 #else
   #error NOT IMPLEMENTED
 #endif
-  outputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get());
 
-  bool failedToFindDevice = false;
-  bool resetToDefault = false;
-
-  if (inputID == -1)
+  if (!requiresDuplexDevice && inputID == -1)
   {
-    if (mDefaultInputDev > -1)
+    inputID = GetFallbackAudioDevice(ERoute::kInput);
+    if (inputID != -1)
     {
-      resetToDefault = true;
-      inputID = mDefaultInputDev;
-
-      if (mAudioInputDevs.size())
-        mState.mAudioInDev.Set(GetAudioDeviceName(inputID).c_str());
+      mState.mAudioInDev.Set(GetAudioDeviceName(inputID).c_str());
+      stateChanged = true;
     }
-    else
-      failedToFindDevice = true;
   }
 
-  if (outputID == -1)
+  if (!requiresDuplexDevice && outputID == -1)
   {
-    if (mDefaultOutputDev > -1)
+    outputID = GetFallbackAudioDevice(ERoute::kOutput);
+    if (outputID != -1)
     {
-      resetToDefault = true;
-
-      outputID = mDefaultOutputDev;
-
-      if (mAudioOutputDevs.size())
-        mState.mAudioOutDev.Set(GetAudioDeviceName(outputID).c_str());
+      mState.mAudioOutDev.Set(GetAudioDeviceName(outputID).c_str());
+      stateChanged = true;
     }
-    else
-      failedToFindDevice = true;
   }
 
-  if (resetToDefault)
+  if (inputID == -1 || outputID == -1)
   {
-    DBGMSG("couldn't find previous audio device, reseting to default\n");
+    MessageBox(gHWND, "No compatible audio input/output device pair was found. Please check Preferences.", "Error",
+               MB_OK);
+    return false;
+  }
 
+  const bool audioStarted = InitAudio(inputID, outputID, mState.mAudioSR, mState.mBufferSize);
+
+  if (audioStarted && stateChanged)
+  {
+    DBGMSG("previous audio device pair was invalid; using a compatible fallback\n");
     UpdateINI();
   }
 
-  if (failedToFindDevice)
-    MessageBox(gHWND, "Please check your soundcard settings in Preferences", "Error", MB_OK);
-
-  if (inputID != -1 && outputID != -1)
-  {
-    return InitAudio(inputID, outputID, mState.mAudioSR, mState.mBufferSize);
-  }
-
-  return false;
+  return audioStarted;
 }
 
 bool IPlugAPPHost::SelectMIDIDevice(ERoute direction, const char* pPortName)
@@ -592,13 +684,30 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
   CloseAudio();
 
   RtAudio::StreamParameters iParams, oParams;
-  RtAudio::DeviceInfo inputInfo = mDAC->getDeviceInfo(inId);
-  RtAudio::DeviceInfo outputInfo = mDAC->getDeviceInfo(outId);
+  RtAudio::DeviceInfo inputInfo;
+  RtAudio::DeviceInfo outputInfo;
+
+  try
+  {
+    inputInfo = mDAC->getDeviceInfo(inId);
+    outputInfo = mDAC->getDeviceInfo(outId);
+  }
+  catch (RtAudioError& e)
+  {
+    e.printMessage();
+    return false;
+  }
 
   iParams.deviceId = inId;
   iParams.nChannels = GetPlug()->MaxNChannels(ERoute::kInput);
   if (iParams.nChannels > 0)
   {
+    if (!inputInfo.probed || inputInfo.inputChannels < iParams.nChannels)
+    {
+      DBGMSG("selected input device does not provide the required channels\n");
+      return false;
+    }
+
     mState.mAudioInChanL = ClampFirstChannel(mState.mAudioInChanL, inputInfo.inputChannels, iParams.nChannels);
     mState.mAudioInChanR =
       iParams.nChannels > 1 ? std::min(mState.mAudioInChanL + 1, inputInfo.inputChannels) : mState.mAudioInChanL;
@@ -609,6 +718,12 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
   oParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput);
   if (oParams.nChannels > 0)
   {
+    if (!outputInfo.probed || outputInfo.outputChannels < oParams.nChannels)
+    {
+      DBGMSG("selected output device does not provide the required channels\n");
+      return false;
+    }
+
     mState.mAudioOutChanL = ClampFirstChannel(mState.mAudioOutChanL, outputInfo.outputChannels, oParams.nChannels);
     mState.mAudioOutChanR =
       oParams.nChannels > 1 ? std::min(mState.mAudioOutChanL + 1, outputInfo.outputChannels) : mState.mAudioOutChanL;

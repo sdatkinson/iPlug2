@@ -216,6 +216,11 @@ public:
 
   IPlugAPP* GetPlug() { return mIPlug.get(); }
 private:
+  int GetAudioDeviceIdx(const char* name, ERoute direction) const;
+  bool AudioDeviceSupportsRoute(int idx, ERoute direction) const;
+  int GetFallbackAudioDevice(ERoute direction) const;
+  int GetFallbackDuplexAudioDevice() const;
+
   std::unique_ptr<IPlugAPP> mIPlug = nullptr;
   std::unique_ptr<RtAudio> mDAC = nullptr;
   std::unique_ptr<RtMidiIn> mMidiIn = nullptr;
