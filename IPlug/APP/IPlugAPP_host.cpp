@@ -739,7 +739,6 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
   options.flags = RTAUDIO_NONINTERLEAVED;
   // options.streamName = BUNDLE_NAME; // JACK stream name, not used on other streams
 
-  mBufIndex = 0;
   mSamplesElapsed = 0;
   mSampleRate = (double) sr;
   mVecWait = 0;
@@ -845,33 +844,32 @@ int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_
     if (doFade)
       ApplyFades(pInputBufferD, nins, nFrames, _this->mAudioEnding);
     
-    for (int i = 0; i < nFrames; i++)
+    for (uint32_t i = 0; i < nFrames; )
     {
-      _this->mBufIndex %= APP_SIGNAL_VECTOR_SIZE;
+      const uint32_t remainingFrames = nFrames - i;
+      const int blockFrames = static_cast<int>(remainingFrames < APP_SIGNAL_VECTOR_SIZE ? remainingFrames : APP_SIGNAL_VECTOR_SIZE);
 
-      if (_this->mBufIndex == 0)
+      for (int c = 0; c < nins; c++)
       {
-        for (int c = 0; c < nins; c++)
-        {
-          _this->mInputBufPtrs.Set(c, (pInputBufferD + (c * nFrames)) + i);
-        }
-        
-        for (int c = 0; c < nouts; c++)
-        {
-          _this->mOutputBufPtrs.Set(c, (pOutputBufferD + (c * nFrames)) + i);
-        }
-        
-        _this->mIPlug->AppProcess(_this->mInputBufPtrs.GetList(), _this->mOutputBufPtrs.GetList(), APP_SIGNAL_VECTOR_SIZE);
-
-        _this->mSamplesElapsed += APP_SIGNAL_VECTOR_SIZE;
+        _this->mInputBufPtrs.Set(c, (pInputBufferD + (c * nFrames)) + i);
       }
-      
+
       for (int c = 0; c < nouts; c++)
       {
-        pOutputBufferD[c * nFrames + i] *= APP_MULT;
+        _this->mOutputBufPtrs.Set(c, (pOutputBufferD + (c * nFrames)) + i);
       }
 
-      _this->mBufIndex++;
+      _this->mIPlug->AppProcess(_this->mInputBufPtrs.GetList(), _this->mOutputBufPtrs.GetList(), blockFrames);
+      _this->mSamplesElapsed += blockFrames;
+
+      for (int c = 0; c < nouts; c++)
+      {
+        double* pOutput = pOutputBufferD + (c * nFrames) + i;
+        for (int j = 0; j < blockFrames; j++)
+          pOutput[j] *= APP_MULT;
+      }
+
+      i += blockFrames;
     }
     
     if (doFade)

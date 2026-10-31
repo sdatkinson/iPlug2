@@ -123,8 +123,8 @@ void IPlugAPP::AppProcess(double** inputs, double** outputs, int nFrames)
 {
   SetChannelConnections(ERoute::kInput, 0, MaxNChannels(ERoute::kInput), !IsInstrument()); //TODO: go elsewhere - enable inputs
   SetChannelConnections(ERoute::kOutput, 0, MaxNChannels(ERoute::kOutput), true); //TODO: go elsewhere
-  AttachBuffers(ERoute::kInput, 0, NChannelsConnected(ERoute::kInput), inputs, GetBlockSize());
-  AttachBuffers(ERoute::kOutput, 0, NChannelsConnected(ERoute::kOutput), outputs, GetBlockSize());
+  AttachBuffers(ERoute::kInput, 0, NChannelsConnected(ERoute::kInput), inputs, nFrames);
+  AttachBuffers(ERoute::kOutput, 0, NChannelsConnected(ERoute::kOutput), outputs, nFrames);
   
   if(mMidiMsgsFromCallback.ElementsAvailable())
   {
@@ -162,6 +162,6 @@ void IPlugAPP::AppProcess(double** inputs, double** outputs, int nFrames)
   //Do not handle Sysex messages here - SendSysexMsgFromUI overridden
 
   ENTER_PARAMS_MUTEX
-  ProcessBuffers(0.0, GetBlockSize());
+  ProcessBuffers(0.0, nFrames);
   LEAVE_PARAMS_MUTEX
 }

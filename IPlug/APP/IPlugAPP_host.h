@@ -239,7 +239,6 @@ private:
   uint32_t mSamplesElapsed = 0;
   uint32_t mVecWait = 0;
   uint32_t mBufferSize = 512;
-  uint32_t mBufIndex = 0; // index for signal vector, loops from 0 to mSigVS
   bool mExiting = false;
   bool mAudioEnding = false;
   bool mAudioDone = false;
