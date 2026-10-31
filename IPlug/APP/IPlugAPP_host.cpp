@@ -846,7 +846,8 @@ int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_
     
     for (uint32_t i = 0; i < nFrames; )
     {
-      const int blockFrames = static_cast<int>(std::min<uint32_t>(APP_SIGNAL_VECTOR_SIZE, nFrames - i));
+      const uint32_t remainingFrames = nFrames - i;
+      const int blockFrames = static_cast<int>(remainingFrames < APP_SIGNAL_VECTOR_SIZE ? remainingFrames : APP_SIGNAL_VECTOR_SIZE);
 
       for (int c = 0; c < nins; c++)
       {
@@ -863,9 +864,9 @@ int IPlugAPPHost::AudioCallback(void* pOutputBuffer, void* pInputBuffer, uint32_
 
       for (int c = 0; c < nouts; c++)
       {
-        double* output = pOutputBufferD + (c * nFrames) + i;
+        double* pOutput = pOutputBufferD + (c * nFrames) + i;
         for (int j = 0; j < blockFrames; j++)
-          output[j] *= APP_MULT;
+          pOutput[j] *= APP_MULT;
       }
 
       i += blockFrames;
